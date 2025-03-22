@@ -1,3 +1,99 @@
+# name: Terraform EC2 Deployment
+
+# on:
+#   push:
+#     branches: [ main ]
+#   pull_request:
+#     branches: [ main ]
+#   workflow_dispatch:
+
+# jobs:
+#   terraform:
+#     runs-on: ubuntu-latest
+#     environment: AWS
+#     defaults:
+#       run:
+#         working-directory: ./code/EC2
+#     steps:
+#     - name: Checkout repository
+#       uses: actions/checkout@v3
+
+#     - name: Debug Secrets Availability
+#       run: |
+#         echo "Check if secrets are available (without revealing values):"
+#         if [ -n "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then
+#           echo "AWS_ACCESS_KEY_ID is set and not empty"
+#         else
+#           echo "AWS_ACCESS_KEY_ID is NOT set or is empty"
+#         fi
+
+#         if [ -n "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then
+#           echo "AWS_SECRET_ACCESS_KEY is set and not empty"
+#         else
+#           echo "AWS_SECRET_ACCESS_KEY is NOT set or is empty"
+#         fi
+
+#         echo "Using AWS region: us-east-2"
+    
+#     - name: Setup Terraform
+#       uses: hashicorp/setup-terraform@v2
+#       with:
+#         terraform_version: 1.5.0
+
+#     - name: Configure AWS credentials
+#       uses: aws-actions/configure-aws-credentials@v2
+#       with:
+#         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#         aws-region: us-east-2
+
+#     - name: Verify AWS CLI
+#       run: aws sts get-caller-identity
+
+#     - name: Check Terraform Files
+#       run: |
+#         echo "Listing terraform files:"
+#         find . -name "*.tf" -type f -exec echo {} \;
+#         echo "Contents of main Terraform files:"
+#         cat *.tf
+
+#     - name: Terraform Init
+#       run: terraform init
+
+#     - name: Terraform Format
+#       run: terraform fmt -check
+#       continue-on-error: true
+
+#     - name: Terraform Validate
+#       run: terraform validate
+
+#     - name: Terraform Plan with Debug
+#       run: |
+#         echo "Starting terraform plan with debug enabled..."
+#         export TF_LOG=DEBUG
+#         export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
+#         export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+#         terraform plan -input=false -no-color -out=tfplan
+#       timeout-minutes: 5
+
+#     # - name: Terraform Apply
+#     #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+#     #   run: |
+#     #     echo "Applying Terraform changes..."
+#     #     export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
+#     #     export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+#     #     terraform apply -auto-approve tfplan
+#     #   timeout-minutes: 9
+
+#     - name: Terraform Destroy
+#       run: |
+#         echo "DESTROYING ALL RESOURCES!"
+#         export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
+#         export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+#         terraform destroy -auto-approve
+#       timeout-minutes: 15
+
+
 name: Terraform EC2 Deployment
 
 on:
@@ -67,28 +163,37 @@ jobs:
     - name: Terraform Validate
       run: terraform validate
 
+    - name: Debug - Show Terraform State
+      run: |
+        echo "Current Terraform State:"
+        terraform show
+
+    - name: Debug - List AWS Resources
+      run: |
+        echo "Listing EC2 Instances:"
+        aws ec2 describe-instances --query 'Reservations[*].Instances[*].[InstanceId,State.Name,Tags[?Key==`Name`].Value|[0]]' --output table
+
     - name: Terraform Plan with Debug
       run: |
         echo "Starting terraform plan with debug enabled..."
         export TF_LOG=DEBUG
         export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
         export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-        terraform plan -input=false -no-color -out=tfplan
+        terraform plan -input=false -no-color
       timeout-minutes: 5
 
-    # - name: Terraform Apply
-    #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    #   run: |
-    #     echo "Applying Terraform changes..."
-    #     export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
-    #     export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-    #     terraform apply -auto-approve tfplan
-    #   timeout-minutes: 9
-
-    - name: Terraform Destroy
+    - name: Terraform Destroy with Debug
       run: |
         echo "DESTROYING ALL RESOURCES!"
+        export TF_LOG=DEBUG
         export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
         export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
         terraform destroy -auto-approve
       timeout-minutes: 15
+
+    - name: Debug - Verify Destruction
+      run: |
+        echo "Verifying if resources were destroyed:"
+        terraform show
+        echo "Listing EC2 Instances after destroy:"
+        aws ec2 describe-instances --query 'Reservations[*].Instances[*].[InstanceId,State.Name,Tags[?Key==`Name`].Value|[0]]' --output table
