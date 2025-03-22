@@ -1,2 +1,2 @@
 *.tfvars
-provider.tf
+providers.tf
