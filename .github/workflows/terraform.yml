@@ -13,7 +13,7 @@ jobs:
     environment: AWS
     defaults:
       run:
-        working-directory: ./code/EC2
+        working-directory: ./code/
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
