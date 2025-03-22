@@ -1,125 +1,11 @@
-# name: Terraform EC2 Deployment
-
-# on:
-#   push:
-#     branches: [ main ]
-#   pull_request:
-#     branches: [ main ]
-#   workflow_dispatch:
-#     inputs:
-#       destroy:
-#         description: 'Destroy infrastructure (true/false)'
-#         required: true
-#         default: 'false'
-#         type: boolean
-
-# jobs:
-#   terraform:
-#     runs-on: ubuntu-latest
-#     environment: AWS
-#     defaults:
-#       run:
-#         working-directory: ./code/EC2
-#     steps:
-#     - name: Checkout repository
-#       uses: actions/checkout@v3
-
-#     - name: Debug Secrets Availability
-#       run: |
-#         echo "Check if secrets are available (without revealing values):"
-#         if [ -n "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then
-#           echo "AWS_ACCESS_KEY_ID is set and not empty"
-#         else
-#           echo "AWS_ACCESS_KEY_ID is NOT set or is empty"
-#         fi
-
-#         if [ -n "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then
-#           echo "AWS_SECRET_ACCESS_KEY is set and not empty"
-#         else
-#           echo "AWS_SECRET_ACCESS_KEY is NOT set or is empty"
-#         fi
-
-#         echo "Using AWS region: us-east-2"
-    
-#     - name: Setup Terraform
-#       uses: hashicorp/setup-terraform@v2
-#       with:
-#         terraform_version: 1.5.0
-
-#     - name: Configure AWS credentials
-#       uses: aws-actions/configure-aws-credentials@v2
-#       with:
-#         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-#         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-#         aws-region: us-east-2
-
-#     - name: Verify AWS CLI
-#       run: aws sts get-caller-identity
-
-#     - name: Check Terraform Files
-#       run: |
-#         echo "Listing terraform files:"
-#         find . -name "*.tf" -type f -exec echo {} \;
-#         echo "Contents of main Terraform files:"
-#         cat *.tf
-
-#     - name: Terraform Init
-#       run: terraform init
-
-#     - name: Terraform Format
-#       run: terraform fmt -check
-#       continue-on-error: true
-
-#     - name: Terraform Validate
-#       run: terraform validate
-
-#     - name: Terraform Plan with Debug
-#       run: |
-#         echo "Starting terraform plan with debug enabled..."
-#         export TF_LOG=DEBUG
-#         export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
-#         export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-#         terraform plan -input=false -no-color -out=tfplan
-#       timeout-minutes: 5
-
-#     - name: Terraform Apply
-#       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-#       run: |
-#         echo "Applying Terraform changes..."
-#         export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
-#         export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-#         terraform apply -auto-approve tfplan
-#       timeout-minutes: 9
-
-#     - name: Debug destroy condition
-#       run: |
-#         echo "Checking destroy condition..."
-#         if [ "${{ github.event.inputs.destroy }}" == "true" ]; then
-#           echo "Destroy flag is set to true"
-#         else
-#           echo "Destroy flag is NOT set to true"
-#         fi
-
-#     # Destroy resources if selected
-#     - name: Terraform Destroy
-#       if: ${{ github.event.inputs.destroy == 'true' }}
-#       run: |
-#         echo "DESTROYING ALL RESOURCES!"
-#         export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
-#         export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-#         terraform destroy -auto-approve
-#       timeout-minutes: 15
-
-
 name: Terraform EC2 Deployment
 
 on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
-    inputs:
-      destroy:
-        description: 'Set to true to destroy resources'
-        required: true
-        default: 'true'
 
 jobs:
   terraform:
@@ -148,7 +34,7 @@ jobs:
         fi
 
         echo "Using AWS region: us-east-2"
-
+    
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v2
       with:
@@ -164,12 +50,45 @@ jobs:
     - name: Verify AWS CLI
       run: aws sts get-caller-identity
 
+    - name: Check Terraform Files
+      run: |
+        echo "Listing terraform files:"
+        find . -name "*.tf" -type f -exec echo {} \;
+        echo "Contents of main Terraform files:"
+        cat *.tf
+
     - name: Terraform Init
       run: terraform init
 
+    - name: Terraform Format
+      run: terraform fmt -check
+      continue-on-error: true
+
+    - name: Terraform Validate
+      run: terraform validate
+
+    - name: Terraform Plan with Debug
+      run: |
+        echo "Starting terraform plan with debug enabled..."
+        export TF_LOG=DEBUG
+        export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
+        export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+        terraform plan -input=false -no-color -out=tfplan
+      timeout-minutes: 5
+
+    # - name: Terraform Apply
+    #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    #   run: |
+    #     echo "Applying Terraform changes..."
+    #     export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
+    #     export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+    #     terraform apply -auto-approve tfplan
+    #   timeout-minutes: 9
+
     - name: Terraform Destroy
-      if: ${{ github.event.inputs.destroy == 'true' }}
       run: |
         echo "DESTROYING ALL RESOURCES!"
+        export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
+        export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
         terraform destroy -auto-approve
       timeout-minutes: 15
