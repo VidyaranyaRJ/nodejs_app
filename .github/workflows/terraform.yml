@@ -79,7 +79,7 @@ jobs:
       run: |
         ECR_REPO_URI=$(aws ecr describe-repositories --repository-names nodejs-app --query "repositories[0].repositoryUri" --output text)
         echo "ECR_REPO_URI=${ECR_REPO_URI}" >> $GITHUB_ENV
-        
+
     # Docker build and push steps
     - name: Build Docker image
       run: |
@@ -91,8 +91,8 @@ jobs:
 
     - name: Tag Docker image
       run: |
-        docker tag nodejs-app:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-2.amazonaws.com/${{ secrets.ECR_REPOSITORY_NAME }}:latest
+        docker tag nodejs-app:latest $ECR_REPO_URI:latest
 
     - name: Push Docker image to ECR
       run: |
-        docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-2.amazonaws.com/${{ secrets.ECR_REPOSITORY_NAME }}:latest
+        docker push $ECR_REPO_URI:latest
