@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+    destroy:
+      description: 'Destroy infrastructure (true/false)'
+      required: true
+      default: 'false'
+      type: boolean
 
 jobs:
   terraform:
