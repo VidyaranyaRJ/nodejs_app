@@ -6,12 +6,6 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
-    inputs:
-      destroy:
-        description: "Destroy infrastructure (true/false)"
-        required: true
-        default: "true"
-        type: boolean
 
 jobs:
   terraform:
@@ -54,26 +48,25 @@ jobs:
     - name: Terraform Validate
       run: terraform validate
 
-    # Only run plan and apply if not destroying
-    - name: Terraform Plan
-      if: ${{ github.event.inputs.destroy != 'true' }}
-      run: |
-        export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
-        export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-        terraform plan -input=false -no-color -out=tfplan
-      timeout-minutes: 5
+    # Commented out Plan step
+    # - name: Terraform Plan
+    #   run: |
+    #     export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
+    #     export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+    #     terraform plan -input=false -no-color -out=tfplan
+    #   timeout-minutes: 5
       
+    # Commented out Apply step
     # - name: Terraform Apply
-    #   if: ${{ github.event.inputs.destroy != 'true' && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+    #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     #   run: |
     #     export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
     #     export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
     #     terraform apply -auto-approve tfplan
     #   timeout-minutes: 10
       
-    # Destroy resources if selected
+    # Destroy resources
     - name: Terraform Destroy
-      if: ${{ github.event.inputs.destroy == 'true' }}
       run: |
         echo "DESTROYING ALL RESOURCES!"
         export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
