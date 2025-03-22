@@ -114,7 +114,7 @@ on:
     inputs:
       destroy:
         description: "Set to true to destroy resources"
-        required: true
+        required: false
         default: "false"
 
 jobs:
@@ -206,10 +206,10 @@ jobs:
         terraform destroy -auto-approve
       timeout-minutes: 15
 
-    - name: Debug - Verify Destruction
-      if: github.event_name == 'workflow_dispatch' && github.event.inputs.destroy == 'true'
-      run: |
-        echo "Verifying if resources were destroyed:"
-        terraform show || echo "No state found"
-        echo "Listing EC2 Instances after destroy:"
-        aws ec2 describe-instances --query 'Reservations[*].Instances[*].[InstanceId,State.Name,Tags[?Key==`Name`].Value|[0]]' --output table
+    # - name: Debug - Verify Destruction
+    #   if: github.event_name == 'workflow_dispatch' && github.event.inputs.destroy == 'true'
+    #   run: |
+    #     echo "Verifying if resources were destroyed:"
+    #     terraform show || echo "No state found"
+    #     echo "Listing EC2 Instances after destroy:"
+    #     aws ec2 describe-instances --query 'Reservations[*].Instances[*].[InstanceId,State.Name,Tags[?Key==`Name`].Value|[0]]' --output table
