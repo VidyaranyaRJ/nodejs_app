@@ -67,31 +67,40 @@
 #     - name: Terraform Validate
 #       run: terraform validate
 
+#     - name: Debug - Show Terraform State
+#       run: |
+#         echo "Current Terraform State:"
+#         terraform show
+
+#     - name: Debug - List AWS Resources
+#       run: |
+#         echo "Listing EC2 Instances:"
+#         aws ec2 describe-instances --query 'Reservations[*].Instances[*].[InstanceId,State.Name,Tags[?Key==`Name`].Value|[0]]' --output table
+
 #     - name: Terraform Plan with Debug
 #       run: |
 #         echo "Starting terraform plan with debug enabled..."
 #         export TF_LOG=DEBUG
 #         export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
 #         export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-#         terraform plan -input=false -no-color -out=tfplan
+#         terraform plan -input=false -no-color
 #       timeout-minutes: 5
 
-#     # - name: Terraform Apply
-#     #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-#     #   run: |
-#     #     echo "Applying Terraform changes..."
-#     #     export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
-#     #     export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-#     #     terraform apply -auto-approve tfplan
-#     #   timeout-minutes: 9
-
-#     - name: Terraform Destroy
+#     - name: Terraform Destroy with Debug
 #       run: |
 #         echo "DESTROYING ALL RESOURCES!"
+#         export TF_LOG=DEBUG
 #         export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
 #         export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
 #         terraform destroy -auto-approve
 #       timeout-minutes: 15
+
+#     - name: Debug - Verify Destruction
+#       run: |
+#         echo "Verifying if resources were destroyed:"
+#         terraform show
+#         echo "Listing EC2 Instances after destroy:"
+#         aws ec2 describe-instances --query 'Reservations[*].Instances[*].[InstanceId,State.Name,Tags[?Key==`Name`].Value|[0]]' --output table
 
 
 name: Terraform EC2 Deployment
@@ -102,6 +111,11 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      destroy:
+        description: "Set to true to destroy resources"
+        required: true
+        default: "false"
 
 jobs:
   terraform:
@@ -116,19 +130,17 @@ jobs:
 
     - name: Debug Secrets Availability
       run: |
-        echo "Check if secrets are available (without revealing values):"
+        echo "Check if AWS credentials are available..."
         if [ -n "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then
-          echo "AWS_ACCESS_KEY_ID is set and not empty"
+          echo "AWS_ACCESS_KEY_ID is set"
         else
-          echo "AWS_ACCESS_KEY_ID is NOT set or is empty"
+          echo "AWS_ACCESS_KEY_ID is NOT set"
         fi
-
         if [ -n "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then
-          echo "AWS_SECRET_ACCESS_KEY is set and not empty"
+          echo "AWS_SECRET_ACCESS_KEY is set"
         else
-          echo "AWS_SECRET_ACCESS_KEY is NOT set or is empty"
+          echo "AWS_SECRET_ACCESS_KEY is NOT set"
         fi
-
         echo "Using AWS region: us-east-2"
     
     - name: Setup Terraform
@@ -148,13 +160,18 @@ jobs:
 
     - name: Check Terraform Files
       run: |
-        echo "Listing terraform files:"
+        echo "Listing Terraform files:"
         find . -name "*.tf" -type f -exec echo {} \;
         echo "Contents of main Terraform files:"
         cat *.tf
 
-    - name: Terraform Init
-      run: terraform init
+    - name: Terraform Init with S3 Backend
+      run: |
+        terraform init \
+          -backend-config="bucket=vj-test-ecr-79" \
+          -backend-config="key=terraform.tfstate" \
+          -backend-config="region=us-east-2" \
+          -backend-config="encrypt=true"
 
     - name: Terraform Format
       run: terraform fmt -check
@@ -166,34 +183,33 @@ jobs:
     - name: Debug - Show Terraform State
       run: |
         echo "Current Terraform State:"
-        terraform show
+        terraform show || echo "No state found"
 
     - name: Debug - List AWS Resources
       run: |
         echo "Listing EC2 Instances:"
         aws ec2 describe-instances --query 'Reservations[*].Instances[*].[InstanceId,State.Name,Tags[?Key==`Name`].Value|[0]]' --output table
 
-    - name: Terraform Plan with Debug
-      run: |
-        echo "Starting terraform plan with debug enabled..."
-        export TF_LOG=DEBUG
-        export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
-        export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-        terraform plan -input=false -no-color
+    - name: Terraform Plan
+      run: terraform plan -input=false -no-color
       timeout-minutes: 5
 
-    - name: Terraform Destroy with Debug
+    - name: Terraform Apply
+      if: github.event_name != 'workflow_dispatch' || github.event.inputs.destroy != 'true'
+      run: terraform apply -auto-approve
+      timeout-minutes: 15
+
+    - name: Terraform Destroy
+      if: github.event_name == 'workflow_dispatch' && github.event.inputs.destroy == 'true'
       run: |
         echo "DESTROYING ALL RESOURCES!"
-        export TF_LOG=DEBUG
-        export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
-        export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
         terraform destroy -auto-approve
       timeout-minutes: 15
 
     - name: Debug - Verify Destruction
+      if: github.event_name == 'workflow_dispatch' && github.event.inputs.destroy == 'true'
       run: |
         echo "Verifying if resources were destroyed:"
-        terraform show
+        terraform show || echo "No state found"
         echo "Listing EC2 Instances after destroy:"
         aws ec2 describe-instances --query 'Reservations[*].Instances[*].[InstanceId,State.Name,Tags[?Key==`Name`].Value|[0]]' --output table
