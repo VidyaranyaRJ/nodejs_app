@@ -23,14 +23,12 @@ jobs:
         echo "Check if secrets are available (without revealing values):"
         if [ -n "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then
           echo "AWS_ACCESS_KEY_ID is set and not empty"
-          echo "First character: ${${{ secrets.AWS_ACCESS_KEY_ID }}:0:1}*****"
         else
           echo "AWS_ACCESS_KEY_ID is NOT set or is empty"
         fi
         
         if [ -n "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then
           echo "AWS_SECRET_ACCESS_KEY is set and not empty"
-          echo "First character: ${${{ secrets.AWS_SECRET_ACCESS_KEY }}:0:1}*****"
         else
           echo "AWS_SECRET_ACCESS_KEY is NOT set or is empty"
         fi
@@ -42,13 +40,6 @@ jobs:
       with:
         terraform_version: 1.5.0
         
-    - name: Alternative AWS Credentials Setup
-      run: |
-        echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
-        echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
-        echo "AWS_REGION=us-east-2" >> $GITHUB_ENV
-        echo "Environment variables set directly"
-        
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v2
       with:
@@ -57,12 +48,17 @@ jobs:
         aws-region: us-east-2
     
     - name: Verify AWS CLI
-      run: aws sts get-caller-identity || echo "AWS CLI verification failed"
-      continue-on-error: true
+      run: aws sts get-caller-identity
+      
+    - name: Check Terraform Files
+      run: |
+        echo "Listing terraform files:"
+        find . -name "*.tf" -type f -exec echo {} \;
+        echo "Contents of main Terraform files:"
+        cat *.tf
         
     - name: Terraform Init
       run: terraform init
-      continue-on-error: true
     
     - name: Terraform Format
       run: terraform fmt -check
@@ -70,8 +66,21 @@ jobs:
       
     - name: Terraform Validate
       run: terraform validate
-      continue-on-error: true
     
-    - name: Terraform Plan
-      run: terraform plan -no-color
-      continue-on-error: true
+    - name: Terraform Plan with Debug
+      run: |
+        echo "Starting terraform plan with debug enabled..."
+        export TF_LOG=DEBUG
+        export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
+        export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+        terraform plan -input=false -no-color -out=tfplan
+      timeout-minutes: 5
+      
+    - name: Terraform Apply
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: |
+        echo "Applying Terraform changes..."
+        export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
+        export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+        terraform apply -auto-approve tfplan
+      timeout-minutes: 10
