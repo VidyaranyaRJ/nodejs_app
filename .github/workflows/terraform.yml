@@ -48,51 +48,51 @@ jobs:
     - name: Terraform Validate
       run: terraform validate
 
-    # Commented out Plan step
-    - name: Terraform Plan
-      run: |
-        export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
-        export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-        terraform plan -input=false -no-color -out=tfplan
-      timeout-minutes: 5
-      
-    # Commented out Apply step
-    - name: Terraform Apply
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      run: |
-        export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
-        export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-        terraform apply -auto-approve tfplan
-      timeout-minutes: 10
-      
-    # # Destroy resources
-    # - name: Terraform Destroy
+    # # Commented out Plan step
+    # - name: Terraform Plan
     #   run: |
-    #     echo "DESTROYING ALL RESOURCES!"
     #     export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
     #     export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-    #     terraform destroy -auto-approve
-    #   timeout-minutes: 15
-
-    # Get the ECR repository URI dynamically
-    - name: Get ECR Repository URI
+    #     terraform plan -input=false -no-color -out=tfplan
+    #   timeout-minutes: 5
+      
+    # # Commented out Apply step
+    # - name: Terraform Apply
+    #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    #   run: |
+    #     export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
+    #     export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+    #     terraform apply -auto-approve tfplan
+    #   timeout-minutes: 10
+      
+    # Destroy resources
+    - name: Terraform Destroy
       run: |
-        ECR_REPO_URI=$(aws ecr describe-repositories --repository-names nodejs-app --query "repositories[0].repositoryUri" --output text)
-        echo "ECR_REPO_URI=${ECR_REPO_URI}" >> $GITHUB_ENV
+        echo "DESTROYING ALL RESOURCES!"
+        export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
+        export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+        terraform destroy -auto-approve
+      timeout-minutes: 15
 
-    # Docker build and push steps
-    - name: Build Docker image
-      run: |
-        docker build -t nodejs-app .
+    # # Get the ECR repository URI dynamically
+    # - name: Get ECR Repository URI
+    #   run: |
+    #     ECR_REPO_URI=$(aws ecr describe-repositories --repository-names nodejs-app --query "repositories[0].repositoryUri" --output text)
+    #     echo "ECR_REPO_URI=${ECR_REPO_URI}" >> $GITHUB_ENV
 
-    - name: Log in to Amazon ECR
-      run: |
-        aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-2.amazonaws.com
+    # # Docker build and push steps
+    # - name: Build Docker image
+    #   run: |
+    #     docker build -t nodejs-app .
 
-    - name: Tag Docker image
-      run: |
-        docker tag nodejs-app:latest $ECR_REPO_URI:latest
+    # - name: Log in to Amazon ECR
+    #   run: |
+    #     aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-2.amazonaws.com
 
-    - name: Push Docker image to ECR
-      run: |
-        docker push $ECR_REPO_URI:latest
+    # - name: Tag Docker image
+    #   run: |
+    #     docker tag nodejs-app:latest $ECR_REPO_URI:latest
+
+    # - name: Push Docker image to ECR
+    #   run: |
+    #     docker push $ECR_REPO_URI:latest
