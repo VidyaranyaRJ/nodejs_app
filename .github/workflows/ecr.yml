@@ -1,0 +1,55 @@
+name: CICD
+
+on:
+  push:
+    branches:
+      - deploy-to-ecs  # Trigger the workflow when pushing to this branch
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest  # Run the job on an Ubuntu environment
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3  # Checkout the repository to get the source code
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: 'us-east-1'  # Set AWS region
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1  # Log into Amazon ECR
+        with:
+          mask-password: 'true'
+      
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}  # The ECR registry URL
+          IMAGE_TAG: latest  # Tag for the image
+          REPOSITORY: ecr_repository_name  # Repository name in ECR
+        run: |
+          # Build and tag the Docker image
+          docker build -t $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG .
+          # Push the Docker image to ECR
+          docker push $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT  # Set output image for the next step
+
+      - name: Fill in the new image ID in the Amazon ECS task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: nodejs-app-task-definition.json  # Path to ECS task definition
+          container-name: my-node-app-container  # The name of the container in the task definition
+          image: ${{ steps.build-image.outputs.image }}  # The new image URL that was pushed to ECR
+    
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}  # Use the updated task definition
+          service: ecs_service_name # ECS service name
+          cluster: ecs_cluster_name  # ECS cluster name
+          wait-for-service-stability: true  # Ensure the service is stable before moving forward
