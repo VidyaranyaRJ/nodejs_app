@@ -7,7 +7,9 @@ on:
 
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest  # Run the job on an Ubuntu environment
+    runs-on: ubuntu-latest 
+    environment: AWS
+ # Run the job on an Ubuntu environment
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3  # Checkout the repository to get the source code
