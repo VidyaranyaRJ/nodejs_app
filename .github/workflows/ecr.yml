@@ -156,6 +156,8 @@
 #           fi
 
 
+
+
 name: Destroy Resources
 
 on:
@@ -197,15 +199,15 @@ jobs:
             echo "Service is not active or already deleted. Skipping service deletion."
           fi
 
-      # Deregister Task Definition
+      # Deregister Task Definition (with existence check)
       - name: Deregister Task Definition
         run: |
-          TASK_ARN=$(aws ecs describe-task-definition --task-definition my-node-app-task --query 'taskDefinition.taskDefinitionArn' --output text)
-          if [ ! -z "$TASK_ARN" ]; then
+          if aws ecs describe-task-definition --task-definition my-node-app-task > /dev/null 2>&1; then
+            TASK_ARN=$(aws ecs describe-task-definition --task-definition my-node-app-task --query 'taskDefinition.taskDefinitionArn' --output text)
             aws ecs deregister-task-definition --task-definition $TASK_ARN
             echo "Deregistered task definition: $TASK_ARN"
           else
-            echo "No task definition found to deregister."
+            echo "No task definition found to deregister. Skipping."
           fi
 
       # Delete ECR Repository and Images
@@ -213,9 +215,13 @@ jobs:
         env:
           REPOSITORY: ecr_repository_name
         run: |
-          aws ecr batch-delete-image --repository-name $REPOSITORY --image-ids imageTag=latest || true
-          aws ecr delete-repository --repository-name $REPOSITORY --force || true
-          echo "Deleted ECR repository: $REPOSITORY"
+          if aws ecr describe-repositories --repository-names $REPOSITORY > /dev/null 2>&1; then
+            aws ecr batch-delete-image --repository-name $REPOSITORY --image-ids imageTag=latest || true
+            aws ecr delete-repository --repository-name $REPOSITORY --force || true
+            echo "Deleted ECR repository: $REPOSITORY"
+          else
+            echo "ECR repository $REPOSITORY does not exist. Skipping."
+          fi
 
       # Deregister Container Instances
       - name: Deregister Container Instances
