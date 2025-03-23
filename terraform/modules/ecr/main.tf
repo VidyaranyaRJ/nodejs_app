@@ -10,12 +10,13 @@ data "aws_iam_instance_profile" "ecs_profile" {
 
 
 resource "aws_instance" "ecs_instance" {
-  ami                    = "ami-059601b8419c53014"  # latest ECS-optimized AMI
-  instance_type          = "t2.micro"
-  subnet_id              = var.subnet
-  vpc_security_group_ids = [var.sg_id]
-  iam_instance_profile   = data.aws_iam_instance_profile.ecs_profile.name
+  ami                         = "ami-059601b8419c53014"  # latest ECS-optimized AMI
+  instance_type               = "t2.micro"
+  subnet_id                   = var.subnet
+  vpc_security_group_ids      = [var.sg_id]
+  iam_instance_profile        = data.aws_iam_instance_profile.ecs_profile.name
   associate_public_ip_address = true
+  key_name                    = "vj-test"   # <-- Add this line to attach the key pair!
 
   user_data = <<-EOF
     #!/bin/bash
