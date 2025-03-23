@@ -1,3 +1,66 @@
+# name: Build and Deploy to ECS Cluster
+
+# on:
+#   push:
+#     branches: [main]
+#   workflow_dispatch:
+
+# jobs:
+#   build-and-deploy:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout source
+#         uses: actions/checkout@v3
+
+#       - name: Configure AWS credentials
+#         uses: aws-actions/configure-aws-credentials@v2
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: us-east-2
+
+#       - name: Debug AWS credentials
+#         run: |
+#           aws sts get-caller-identity
+
+#       - name: AWS CLI version
+#         run: |
+#           aws --version
+
+#       - name: Check AWS Credentials file
+#         run: |
+#           cat ~/.aws/credentials
+
+#       - name: Login to Amazon ECR
+#         id: login-ecr
+#         uses: aws-actions/amazon-ecr-login@v1
+
+#       - name: Build, tag, and push image to Amazon ECR
+#         id: build-image
+#         env:
+#           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+#           IMAGE_TAG: latest
+#           REPOSITORY: ecr_repository_name
+#         run: |
+#           docker build -t $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG .
+#           docker push $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG
+#           echo "image=$ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+#       - name: Fill in the new image ID in the Amazon ECS task definition
+#         id: task-def
+#         uses: aws-actions/amazon-ecs-render-task-definition@v1
+#         with:
+#           task-definition: nodejs-app-task-definition.json
+#           container-name: my-node-app-container
+#           image: ${{ steps.build-image.outputs.image }}
+
+#       - name: Deploy Amazon ECS task definition
+#         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+#         with:
+#           task-definition: ${{ steps.task-def.outputs.task-definition }}
+#           service: ecs_service_name
+#           cluster: ecs_cluster_name
+#           wait-for-service-stability: true
 name: Build and Deploy to ECS Cluster
 
 on:
@@ -9,9 +72,11 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
+      # Step 1: Checkout source code
       - name: Checkout source
         uses: actions/checkout@v3
 
+      # Step 2: Configure AWS credentials
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -19,22 +84,13 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-2
 
+      # Step 3: Debug AWS credentials
       - name: Debug AWS credentials
         run: |
           aws sts get-caller-identity
+          aws ecr describe-repositories --region us-east-2
 
-      - name: AWS CLI version
-        run: |
-          aws --version
-
-      - name: Check AWS Credentials file
-        run: |
-          cat ~/.aws/credentials
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-
+      # Step 4: Build, tag, and push Docker image to Amazon ECR
       - name: Build, tag, and push image to Amazon ECR
         id: build-image
         env:
@@ -46,6 +102,7 @@ jobs:
           docker push $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG
           echo "image=$ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
+      # Step 5: Fill in the new image ID in the ECS task definition
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
@@ -54,10 +111,11 @@ jobs:
           container-name: my-node-app-container
           image: ${{ steps.build-image.outputs.image }}
 
+      # Step 6: Deploy to ECS
       - name: Deploy Amazon ECS task definition
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.task-def.outputs.task-definition }}
           service: ecs_service_name
-          cluster: ecs_cluster_name
+          cluster: ecr_cluster_name
           wait-for-service-stability: true
