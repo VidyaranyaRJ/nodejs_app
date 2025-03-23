@@ -74,14 +74,95 @@
 
 
 
-#################Destroy###############
+# #################Destroy###############
+# name: Destroy Resources
+
+# on:
+#   push:
+#     branches:
+#       - main
+
+
+# jobs:
+#   destroy-resources:
+#     runs-on: ubuntu-latest
+#     environment: AWS
+#     steps:
+#       - name: Checkout repository
+#         uses: actions/checkout@v3
+
+#       # Configure AWS credentials
+#       - name: Configure AWS credentials
+#         uses: aws-actions/configure-aws-credentials@v2
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: us-east-2
+
+#       # Verify AWS CLI credentials
+#       - name: Verify AWS CLI credentials
+#         run: aws sts get-caller-identity
+
+#       # Login to Amazon ECR
+#       - name: Login to Amazon ECR
+#         id: login-ecr
+#         uses: aws-actions/amazon-ecr-login@v1
+#         with:
+#           mask-password: 'true'
+
+#       # Destroy ECS Service
+#       - name: Destroy ECS Service
+#         run: |
+#           # Update service to 0 tasks
+#           aws ecs update-service --cluster ecs_cluster_name --service ecs_service_name --desired-count 0
+#           # Wait for tasks to be stopped
+#           echo "Waiting for tasks to stop..."
+#           sleep 30
+#           # Delete the service
+#           aws ecs delete-service --cluster ecs_cluster_name --service ecs_service_name --force
+
+#       # Deregister Task Definition
+#       - name: Deregister Task Definition
+#         run: |
+#           TASK_ARN=$(aws ecs describe-task-definition --task-definition my-node-app-task --query 'taskDefinition.taskDefinitionArn' --output text)
+#           if [ ! -z "$TASK_ARN" ]; then
+#             aws ecs deregister-task-definition --task-definition $TASK_ARN
+#             echo "Deregistered task definition: $TASK_ARN"
+#           else
+#             echo "No task definition found to deregister"
+#           fi
+
+#       # Delete ECR Repository and Images
+#       - name: Delete ECR Repository
+#         env:
+#           REPOSITORY: ecr_repository_name
+#         run: |
+#           # Delete all images in the repository
+#           aws ecr batch-delete-image --repository-name $REPOSITORY --image-ids imageTag=latest || true
+#           # Delete the repository
+#           aws ecr delete-repository --repository-name $REPOSITORY --force || true
+#           echo "Deleted ECR repository: $REPOSITORY"
+
+#       # Delete ECS Cluster (if it was created by this workflow)
+#       - name: Delete ECS Cluster
+#         run: |
+#           # Check if the cluster exists
+#           CLUSTER_STATUS=$(aws ecs describe-clusters --clusters ecs_cluster_name --query 'clusters[0].status' --output text 2>/dev/null || echo "MISSING")
+#           if [ "$CLUSTER_STATUS" != "MISSING" ]; then
+#             aws ecs delete-cluster --cluster ecs_cluster_name
+#             echo "Deleted ECS cluster: ecs_cluster_name"
+#           else
+#             echo "ECS cluster not found or already deleted"
+#           fi
+
+
+
 name: Destroy Resources
 
 on:
   push:
     branches:
       - main
-
 
 jobs:
   destroy-resources:
@@ -103,22 +184,12 @@ jobs:
       - name: Verify AWS CLI credentials
         run: aws sts get-caller-identity
 
-      # Login to Amazon ECR
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-        with:
-          mask-password: 'true'
-
       # Destroy ECS Service
       - name: Destroy ECS Service
         run: |
-          # Update service to 0 tasks
           aws ecs update-service --cluster ecs_cluster_name --service ecs_service_name --desired-count 0
-          # Wait for tasks to be stopped
           echo "Waiting for tasks to stop..."
           sleep 30
-          # Delete the service
           aws ecs delete-service --cluster ecs_cluster_name --service ecs_service_name --force
 
       # Deregister Task Definition
@@ -129,7 +200,7 @@ jobs:
             aws ecs deregister-task-definition --task-definition $TASK_ARN
             echo "Deregistered task definition: $TASK_ARN"
           else
-            echo "No task definition found to deregister"
+            echo "No task definition found to deregister."
           fi
 
       # Delete ECR Repository and Images
@@ -137,20 +208,30 @@ jobs:
         env:
           REPOSITORY: ecr_repository_name
         run: |
-          # Delete all images in the repository
           aws ecr batch-delete-image --repository-name $REPOSITORY --image-ids imageTag=latest || true
-          # Delete the repository
           aws ecr delete-repository --repository-name $REPOSITORY --force || true
           echo "Deleted ECR repository: $REPOSITORY"
 
-      # Delete ECS Cluster (if it was created by this workflow)
+      # Deregister Container Instances
+      - name: Deregister Container Instances
+        run: |
+          CONTAINER_INSTANCE_ARNS=$(aws ecs list-container-instances --cluster ecs_cluster_name --query 'containerInstanceArns' --output text)
+          if [ ! -z "$CONTAINER_INSTANCE_ARNS" ]; then
+            for arn in $CONTAINER_INSTANCE_ARNS; do
+              aws ecs deregister-container-instance --cluster ecs_cluster_name --container-instance $arn --force
+              echo "Deregistered container instance: $arn"
+            done
+          else
+            echo "No container instances found to deregister."
+          fi
+
+      # Delete ECS Cluster
       - name: Delete ECS Cluster
         run: |
-          # Check if the cluster exists
           CLUSTER_STATUS=$(aws ecs describe-clusters --clusters ecs_cluster_name --query 'clusters[0].status' --output text 2>/dev/null || echo "MISSING")
           if [ "$CLUSTER_STATUS" != "MISSING" ]; then
             aws ecs delete-cluster --cluster ecs_cluster_name
             echo "Deleted ECS cluster: ecs_cluster_name"
           else
-            echo "ECS cluster not found or already deleted"
+            echo "ECS cluster not found or already deleted."
           fi
