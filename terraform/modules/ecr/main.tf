@@ -18,7 +18,8 @@ resource "aws_instance" "ecs_instance" {
   user_data = <<-EOF
     #!/bin/bash
     echo ECS_CLUSTER=${var.cluster} >> /etc/ecs/ecs.config
-    systemctl enable --now ecs
+    yum update -y
+    systemctl restart ecs
   EOF
 
   tags = {
