@@ -76,7 +76,7 @@ jobs:
     environment: AWS
     defaults:
       run:
-        working-directory: ./code/
+        working-directory: ./terraform/code/
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
