@@ -1,0 +1,99 @@
+name: Build and Deploy to ECS
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+        with:
+          mask-password: 'true'
+          
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ecr_repository_name
+          IMAGE_TAG: latest
+        run: |
+          # Navigate to the directory containing Dockerfile
+          cd nodejs
+          
+          # Build the docker image
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          
+          # Push the docker image
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          
+          # Set the image URI as output
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Create ECS Task Definition JSON
+        run: |
+          cat > task-definition.json << EOF
+          {
+            "family": "my-node-app-task",
+            "networkMode": "awsvpc",
+            "executionRoleArn": "arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):role/ecs_execution_name",
+            "taskRoleArn": "arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):role/ecs_task_name",
+            "containerDefinitions": [
+              {
+                "name": "nodejs-app",
+                "image": "${{ steps.build-image.outputs.image }}",
+                "essential": true,
+                "portMappings": [
+                  {
+                    "containerPort": 3000,
+                    "hostPort": 3000,
+                    "protocol": "tcp"
+                  }
+                ],
+                "logConfiguration": {
+                  "logDriver": "awslogs",
+                  "options": {
+                    "awslogs-group": "/ecs/my-node-app-task",
+                    "awslogs-region": "us-east-2",
+                    "awslogs-stream-prefix": "ecs"
+                  }
+                }
+              }
+            ],
+            "requiresCompatibilities": [
+              "FARGATE"
+            ],
+            "cpu": "256",
+            "memory": "512"
+          }
+          EOF
+
+      - name: Fill in the new image ID in the Amazon ECS task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: nodejs-app
+          image: ${{ steps.build-image.outputs.image }}
+      
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ecs_service_name
+          cluster: ecs_cluster_name
+          wait-for-service-stability: true
