@@ -8,12 +8,13 @@ data "aws_iam_instance_profile" "ecs_profile" {
 }
 
 
+
 resource "aws_instance" "ecs_instance" {
-  ami                    = "ami-0d0f28110d16ee7d6" # Use an ECS-optimized AMI for your region
+  ami                    = "ami-059601b8419c53014"  # latest ECS-optimized AMI
   instance_type          = "t2.micro"
   subnet_id              = var.subnet
   vpc_security_group_ids = [var.sg_id]
-  iam_instance_profile   = data.aws_iam_instance_profile.ecs_profile.name  # Correct reference
+  iam_instance_profile   = data.aws_iam_instance_profile.ecs_profile.name
 
   user_data = <<-EOF
     #!/bin/bash
@@ -26,7 +27,6 @@ resource "aws_instance" "ecs_instance" {
     Name = "ecs-instance"
   }
 }
-
 
 # resource "aws_ecs_task_definition" "my_node_app_task" {
 #   family                   = "my-node-app-task"
@@ -73,7 +73,7 @@ resource "aws_ecs_task_definition" "my_node_app_task" {
       portMappings = [
         {
           containerPort = 3000
-          hostPort      = 3000
+          hostPort      = 0
         }
       ]
     }
