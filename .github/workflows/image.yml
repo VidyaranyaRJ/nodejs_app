@@ -9,11 +9,9 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      # Step 1: Checkout source code
       - name: Checkout source
         uses: actions/checkout@v3
 
-      # Step 2: Configure AWS credentials
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -21,58 +19,45 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-2
 
-      # Step 3: Debug AWS credentials - Check if credentials are being loaded
       - name: Debug AWS credentials
         run: |
-          # Display AWS Access Keys and Region (careful with secrets)
-          echo "AWS Access Key ID: ${{ secrets.AWS_ACCESS_KEY_ID }}"
-          echo "AWS Region: us-east-2"
-          
-          # Check if AWS credentials are correctly set
           aws sts get-caller-identity
 
-      # Step 4: Ensure AWS CLI is working with credentials
       - name: AWS CLI version
         run: |
           aws --version
 
-      # Step 5: Check the AWS Credentials file
       - name: Check AWS Credentials file
         run: |
           cat ~/.aws/credentials
 
-      # Step 6: Login to Amazon ECR
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      # Step 7: Build, tag, and push Docker image to Amazon ECR
       - name: Build, tag, and push image to Amazon ECR
         id: build-image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: latest
-          REPOSITORY: nodejs-app
+          REPOSITORY: ecr_repository_name
         run: |
-          # Build a docker container and push it to ECR so that it can be deployed to ECS.
           docker build -t $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG
           echo "image=$ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-      # Step 8: Fill in the new image ID in the Amazon ECS task definition
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: nodejs-app-task-definition.json 
-          container-name: nodejs-app
+          task-definition: nodejs-app-task-definition.json
+          container-name: my-node-app-container
           image: ${{ steps.build-image.outputs.image }}
 
-      # Step 9: Deploy to ECS
       - name: Deploy Amazon ECS task definition
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.task-def.outputs.task-definition }}
           service: ecs_service_name
-          cluster: ecr_cluster_name
+          cluster: ecs_cluster_name
           wait-for-service-stability: true
