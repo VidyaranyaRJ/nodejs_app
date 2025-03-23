@@ -32,11 +32,11 @@ jobs:
         id: build-image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: ecr_repository_name
+          ECR_REPOSITORY: ecr_repository_name  # Replace with your actual repository name
           IMAGE_TAG: latest
         run: |
           # Navigate to the directory containing Dockerfile
-          cd nodejs
+          cd nodejs  # Adjust if Dockerfile is elsewhere
           
           # Build the docker image
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
@@ -53,8 +53,8 @@ jobs:
           {
             "family": "my-node-app-task",
             "networkMode": "awsvpc",
-            "executionRoleArn": "arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):role/ecs_execution_name",
-            "taskRoleArn": "arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):role/ecs_task_name",
+            "executionRoleArn": "arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):role/ecs_execution_role",  # Adjust role name if necessary
+            "taskRoleArn": "arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):role/ecs_task_role",  # Adjust role name if necessary
             "containerDefinitions": [
               {
                 "name": "nodejs-app",
@@ -97,6 +97,6 @@ jobs:
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: ecs_service_name
-          cluster: ecs_cluster_name
+          service: ecs_service_name  # Replace with your actual service name
+          cluster: ecs_cluster_name  # Replace with your actual cluster name
           wait-for-service-stability: true
