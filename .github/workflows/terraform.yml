@@ -112,8 +112,7 @@
 #     #     docker push $ECR_REPO_URI:latest
 
 
-
-name: Terraform EC2 Deployment
+name: Terraform EC2 Deployment and Docker Push
 
 on:
   push:
@@ -123,12 +122,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  terraform:
+  terraform_and_docker:
     runs-on: ubuntu-latest
     environment: AWS
-    defaults:
-      run:
-        working-directory: ./code/
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
@@ -165,46 +162,41 @@ jobs:
 
     - name: Terraform Plan
       run: |
-        export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
-        export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
         terraform plan -input=false -no-color -out=tfplan
-      timeout-minutes: 5
+      env:
+        TF_VAR_AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        TF_VAR_AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       
     - name: Terraform Apply
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       run: |
-        export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
-        export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
         terraform apply -auto-approve tfplan
-      timeout-minutes: 10
+      env:
+        TF_VAR_AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        TF_VAR_AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
-    # Ensure ECR repository exists before proceeding
     - name: Ensure ECR Repository Exists
       run: |
         if ! aws ecr describe-repositories --repository-names nodejs-app --region us-east-2 2>/dev/null; then
           aws ecr create-repository --repository-name nodejs-app --region us-east-2
         fi
 
-    # Retrieve AWS Account ID dynamically
     - name: Get AWS Account ID
       run: |
         AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
         echo "AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID}" >> $GITHUB_ENV
 
-    # Get ECR Repository URI dynamically
     - name: Get ECR Repository URI
       run: |
         ECR_REPO_URI=$(aws ecr describe-repositories --repository-names nodejs-app --query "repositories[0].repositoryUri" --output text --region us-east-2)
         echo "ECR_REPO_URI=${ECR_REPO_URI}" >> $GITHUB_ENV
 
-    # Debug to check files in the directory
     - name: Debug Files
-      run: ls -R ./code/
+      run: ls -R
 
-    # Docker build and push steps
     - name: Build Docker image
       run: |
-        docker build -t nodejs-app ./code/
+        docker build -t nodejs-app ./nodejs-app
 
     - name: Log in to Amazon ECR
       run: |
