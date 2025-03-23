@@ -48,27 +48,27 @@ jobs:
     - name: Terraform Validate
       run: terraform validate
 
-    - name: Terraform Plan
-      run: |
-        export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
-        export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-        terraform plan -input=false -no-color -out=tfplan
-      timeout-minutes: 5
-          
-    - name: Terraform Apply
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      run: |
-        export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
-        export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-        terraform apply -auto-approve tfplan
-      timeout-minutes: 11
-
-
-    # #Destroy resources
-    # - name: Terraform Destroy
+    # - name: Terraform Plan
     #   run: |
-    #     echo "DESTROYING ALL RESOURCES!"
     #     export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
     #     export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-    #     terraform destroy -auto-approve
-    #   timeout-minutes: 12
+    #     terraform plan -input=false -no-color -out=tfplan
+    #   timeout-minutes: 5
+          
+    # - name: Terraform Apply
+    #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    #   run: |
+    #     export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
+    #     export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+    #     terraform apply -auto-approve tfplan
+    #   timeout-minutes: 11
+
+
+    #Destroy resources
+    - name: Terraform Destroy
+      run: |
+        echo "DESTROYING ALL RESOURCES!"
+        export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
+        export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+        terraform destroy -auto-approve
+      timeout-minutes: 12
