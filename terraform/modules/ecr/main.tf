@@ -71,8 +71,8 @@ resource "aws_ecs_task_definition" "my_node_app_task" {
       essential = true
       portMappings = [
         {
-          containerPort = 80
-          hostPort      = 80
+          containerPort = 3000
+          hostPort      = 3000
         }
       ]
     }
