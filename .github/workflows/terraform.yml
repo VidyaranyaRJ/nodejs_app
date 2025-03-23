@@ -61,7 +61,7 @@ jobs:
         export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
         export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
         terraform apply -auto-approve tfplan
-      timeout-minutes: 11
+      timeout-minutes: 10
 
 
 
