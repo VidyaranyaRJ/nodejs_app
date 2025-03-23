@@ -1,19 +1,28 @@
+
+
 {
   "family": "nodejs-app-task",
   "containerDefinitions": [
     {
       "name": "my-node-app-container",
-      "image": "528757788603.dkr.ecr.us-east-2.amazonaws.com/ecr_repository_name:latest",
+      "image": "528757788603.dkr.ecr.us-east-2.amazonaws.com/ecr_repository_name:latest",  
       "memory": 512,
       "cpu": 256,
       "essential": true,
       "portMappings": [
         {
-          "containerPort": 3000,
-          "hostPort": 3000
+          "containerPort": 80,
+          "hostPort": 80
         }
-      ]
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/my-node-app-logs",
+          "awslogs-region": "us-east-2",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
     }
   ]
 }
-
