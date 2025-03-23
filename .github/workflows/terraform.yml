@@ -111,6 +111,10 @@
 #     #   run: |
 #     #     docker push $ECR_REPO_URI:latest
 
+
+
+
+
 name: Terraform EC2 Deployment
 
 on:
@@ -124,10 +128,6 @@ jobs:
   terraform:
     runs-on: ubuntu-latest
     environment: AWS
-    # Remove or update the working directory setting
-    # defaults:
-    #   run:
-    #     working-directory: ./code/
     
     steps:
     - name: Checkout repository
@@ -148,6 +148,13 @@ jobs:
     - name: Verify AWS CLI
       run: aws sts get-caller-identity
 
+    - name: Debug Files
+      run: |
+        ls -la
+        echo "---"
+        ls -la modules/
+
+    # Point to the modules directory in terraform commands
     - name: Terraform Init with S3 Backend
       run: |
         terraform init \
@@ -155,13 +162,16 @@ jobs:
           -backend-config="key=terraform.tfstate" \
           -backend-config="region=us-east-2" \
           -backend-config="encrypt=true"
+      working-directory: ./modules
 
     - name: Terraform Format
-      run: terraform fmt -check
+      run: terraform fmt -check -recursive
       continue-on-error: true
+      working-directory: ./modules
 
     - name: Terraform Validate
       run: terraform validate
+      working-directory: ./modules
 
     - name: Terraform Plan
       run: |
@@ -169,6 +179,7 @@ jobs:
         export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
         terraform plan -input=false -no-color -out=tfplan
       timeout-minutes: 5
+      working-directory: ./modules
 
     - name: Terraform Apply
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -177,6 +188,7 @@ jobs:
         export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
         terraform apply -auto-approve tfplan
       timeout-minutes: 10
+      working-directory: ./modules
 
     # Ensure ECR repository exists before proceeding
     - name: Ensure ECR Repository Exists
@@ -197,14 +209,27 @@ jobs:
         ECR_REPO_URI=$(aws ecr describe-repositories --repository-names nodejs-app --query "repositories[0].repositoryUri" --output text --region us-east-2)
         echo "ECR_REPO_URI=${ECR_REPO_URI}" >> $GITHUB_ENV
 
-    # Debugging step to check files in the root directory
-    - name: Debug Files
-      run: ls -la
+    # Check if Node.js app directory exists with Dockerfile
+    - name: Debug Node.js App Directory
+      run: |
+        if [ -d "./nodejs-app" ]; then
+          echo "nodejs-app directory exists"
+          ls -la ./nodejs-app/
+        else
+          echo "nodejs-app directory does not exist"
+        fi
 
-    # Build and push Docker image - updated to use the correct path
+    # Build and push Docker image - updated to use the nodejs-app directory if it exists
     - name: Build Docker image
       run: |
-        docker build -t nodejs-app .
+        if [ -d "./nodejs-app" ] && [ -f "./nodejs-app/Dockerfile" ]; then
+          docker build -t nodejs-app ./nodejs-app/
+        elif [ -f "./Dockerfile" ]; then
+          docker build -t nodejs-app .
+        else
+          echo "No Dockerfile found"
+          exit 1
+        fi
 
     - name: Log in to Amazon ECR
       run: |
