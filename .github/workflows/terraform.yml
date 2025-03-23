@@ -163,89 +163,99 @@ jobs:
     - name: Terraform Validate
       run: terraform validate
 
-    - name: Terraform Plan
+    #Destroy resources
+    - name: Terraform Destroy
       run: |
+        echo "DESTROYING ALL RESOURCES!"
         export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
         export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-        terraform plan -input=false -no-color -out=tfplan
-      timeout-minutes: 5
+        terraform destroy -auto-approve
+      timeout-minutes: 12
+
+
+  #   - name: Terraform Plan
+  #     run: |
+  #       export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
+  #       export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+  #       terraform plan -input=false -no-color -out=tfplan
+  #     timeout-minutes: 5
       
-    - name: Terraform Apply
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      run: |
-        export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
-        export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-        terraform apply -auto-approve tfplan
-      timeout-minutes: 10
+  #   - name: Terraform Apply
+  #     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+  #     run: |
+  #       export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
+  #       export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+  #       terraform apply -auto-approve tfplan
+  #     timeout-minutes: 10
 
-    # Get outputs from Terraform for ECS deployment
-    - name: Get Terraform Outputs
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/deploy-to-ecs'
-      id: terraform-outputs
-      run: |
-        # Store any outputs needed for ECS deployment
-        # Example: ECS cluster name, VPC info, etc.
-        echo "ecs_cluster=$(terraform output -raw ecs_cluster_name || echo 'DevCluster')" >> $GITHUB_OUTPUT
-        echo "ecs_service=$(terraform output -raw ecs_service_name || echo 'nodejs-app-service')" >> $GITHUB_OUTPUT
+  #   # Get outputs from Terraform for ECS deployment
+  #   - name: Get Terraform Outputs
+  #     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/deploy-to-ecs'
+  #     id: terraform-outputs
+  #     run: |
+  #       # Store any outputs needed for ECS deployment
+  #       # Example: ECS cluster name, VPC info, etc.
+  #       echo "ecs_cluster=$(terraform output -raw ecs_cluster_name || echo 'DevCluster')" >> $GITHUB_OUTPUT
+  #       echo "ecs_service=$(terraform output -raw ecs_service_name || echo 'nodejs-app-service')" >> $GITHUB_OUTPUT
 
-  build-and-deploy:
-    needs: terraform
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/deploy-to-ecs'
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+  # build-and-deploy:
+  #   needs: terraform
+  #   runs-on: ubuntu-latest
+  #   if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/deploy-to-ecs'
+  #   steps:
+  #   - name: Checkout repository
+  #     uses: actions/checkout@v3
       
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-2
+  #   - name: Configure AWS credentials
+  #     uses: aws-actions/configure-aws-credentials@v2
+  #     with:
+  #       aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #       aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  #       aws-region: us-east-2
         
-    # Ensure ECR repository exists
-    - name: Ensure ECR Repository Exists
-      run: |
-        if ! aws ecr describe-repositories --repository-names nodejs-app --region us-east-2 2>/dev/null; then
-          aws ecr create-repository --repository-name nodejs-app --region us-east-2
-        fi
+  #   # Ensure ECR repository exists
+  #   - name: Ensure ECR Repository Exists
+  #     run: |
+  #       if ! aws ecr describe-repositories --repository-names nodejs-app --region us-east-2 2>/dev/null; then
+  #         aws ecr create-repository --repository-name nodejs-app --region us-east-2
+  #       fi
 
-    # Login to ECR
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
-      with:
-        mask-password: 'true'
+  #   # Login to ECR
+  #   - name: Login to Amazon ECR
+  #     id: login-ecr
+  #     uses: aws-actions/amazon-ecr-login@v1
+  #     with:
+  #       mask-password: 'true'
         
-    # Build and push image to ECR
-    - name: Build, Tag, and Push Image to ECR
-      id: build-image
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        IMAGE_TAG: ${{ github.sha }}
-        REPOSITORY: nodejs-app
-      run: |
-        cd nodejs-app
-        docker build -t $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG .
-        docker tag $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$REPOSITORY:latest
-        docker push $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG
-        docker push $ECR_REGISTRY/$REPOSITORY:latest
-        echo "image=$ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+  #   # Build and push image to ECR
+  #   - name: Build, Tag, and Push Image to ECR
+  #     id: build-image
+  #     env:
+  #       ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+  #       IMAGE_TAG: ${{ github.sha }}
+  #       REPOSITORY: nodejs-app
+  #     run: |
+  #       cd nodejs-app
+  #       docker build -t $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG .
+  #       docker tag $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$REPOSITORY:latest
+  #       docker push $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG
+  #       docker push $ECR_REGISTRY/$REPOSITORY:latest
+  #       echo "image=$ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
         
-    # Render ECS task definition with new image
-    - name: Fill in the new image ID in the Amazon ECS task definition
-      id: task-def
-      uses: aws-actions/amazon-ecs-render-task-definition@v1
-      with:
-        task-definition: nodejs-app-task-definition.json
-        container-name: nodejs-app
-        image: ${{ steps.build-image.outputs.image }}
+  #   # Render ECS task definition with new image
+  #   - name: Fill in the new image ID in the Amazon ECS task definition
+  #     id: task-def
+  #     uses: aws-actions/amazon-ecs-render-task-definition@v1
+  #     with:
+  #       task-definition: nodejs-app-task-definition.json
+  #       container-name: nodejs-app
+  #       image: ${{ steps.build-image.outputs.image }}
         
-    # Deploy to ECS
-    - name: Deploy Amazon ECS task definition
-      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-      with:
-        task-definition: ${{ steps.task-def.outputs.task-definition }}
-        service: ${{ needs.terraform.outputs.ecs_service || 'nodejs-app-service' }}
-        cluster: ${{ needs.terraform.outputs.ecs_cluster || 'DevCluster' }}
-        wait-for-service-stability: true
+  #   # Deploy to ECS
+  #   - name: Deploy Amazon ECS task definition
+  #     uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+  #     with:
+  #       task-definition: ${{ steps.task-def.outputs.task-definition }}
+  #       service: ${{ needs.terraform.outputs.ecs_service || 'nodejs-app-service' }}
+  #       cluster: ${{ needs.terraform.outputs.ecs_cluster || 'DevCluster' }}
+  #       wait-for-service-stability: true
