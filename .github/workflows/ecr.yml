@@ -156,7 +156,6 @@
 #           fi
 
 
-
 name: Destroy Resources
 
 on:
@@ -184,13 +183,19 @@ jobs:
       - name: Verify AWS CLI credentials
         run: aws sts get-caller-identity
 
-      # Destroy ECS Service
+      # Destroy ECS Service (with check)
       - name: Destroy ECS Service
         run: |
-          aws ecs update-service --cluster ecs_cluster_name --service ecs_service_name --desired-count 0
-          echo "Waiting for tasks to stop..."
-          sleep 30
-          aws ecs delete-service --cluster ecs_cluster_name --service ecs_service_name --force
+          SERVICE_STATUS=$(aws ecs describe-services --cluster ecs_cluster_name --services ecs_service_name --query 'services[0].status' --output text 2>/dev/null || echo "INACTIVE")
+          if [ "$SERVICE_STATUS" = "ACTIVE" ]; then
+            aws ecs update-service --cluster ecs_cluster_name --service ecs_service_name --desired-count 0
+            echo "Waiting for tasks to stop..."
+            sleep 30
+            aws ecs delete-service --cluster ecs_cluster_name --service ecs_service_name --force
+            echo "ECS service deleted."
+          else
+            echo "Service is not active or already deleted. Skipping service deletion."
+          fi
 
       # Deregister Task Definition
       - name: Deregister Task Definition
