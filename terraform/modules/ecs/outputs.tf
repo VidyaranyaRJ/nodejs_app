@@ -7,3 +7,7 @@ output "aws_ecs_cluster_id" {
 output "aws_ecs_cluster_name" {
   value = aws_ecs_cluster.test.name
 }
+
+output "ecs_cluster_name" {
+  value = aws_ecs_cluster.test.name
+}

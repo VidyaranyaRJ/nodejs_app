@@ -17,13 +17,17 @@ variable "ecs_task_role_arn" {
   type        = string
 }
 
-variable "cluster" {
-  type        = string
-}
+
 variable "subnet" {
   type        = string
 }
 
 variable "sg_id" {
+  type        = string
+}
+
+
+variable "cluster" {
+  description = "The ECS cluster name"
   type        = string
 }
