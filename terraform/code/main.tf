@@ -26,6 +26,7 @@ terraform {
 
 module "ecr" {
   source                                 = "../modules/ecr"
+  ecs_cluster_name = var.ecs_cluster_name
   ecr_repository_name                    = var.ecr_repository_name
   ecs_service_name                       = var.ecs_service_name
   ecs_execution_role_arn                 = module.iam.ecs_execution_role_arn
@@ -38,10 +39,10 @@ module "ecr" {
 
 
 
-module "ecs" {
-  source                                 = "../modules/ecs"
-  ecs_cluster_name = var.ecs_cluster_name
-}
+# module "ecs" {
+#   source                                 = "../modules/ecs"
+#   ecs_cluster_name = var.ecs_cluster_name
+# }
 
 module "iam" {
   source                                 = "../modules/IAM"

@@ -78,6 +78,11 @@
 #   name = var.cluster  # Make sure var.cluster is the cluster name
 # }
 
+resource "aws_ecs_cluster" "test" {
+  name = var.ecs_cluster_name
+
+}
+
 resource "aws_ecr_repository" "test" {
   name = var.ecr_repository_name
 }
@@ -97,9 +102,11 @@ resource "aws_instance" "ecs_instance" {
 
   user_data = <<-EOF
     #!/bin/bash
-    echo "ECS_CLUSTER=${var.cluster}" >> /etc/ecs/ecs.config
+    echo "ECS_CLUSTER=${aws_ecs_cluster.test.name}" >> /etc/ecs/ecs.config
+    sudo yum update -y ecs-init
     systemctl enable --now ecs
   EOF
+
 
 
   tags = {
@@ -126,7 +133,7 @@ resource "aws_ecs_task_definition" "my_node_app_task" {
       portMappings = [
         {
           containerPort = 3000
-          hostPort      = 0
+          hostPort      = 3000 
         }
       ]
     }
@@ -137,7 +144,7 @@ resource "aws_ecs_task_definition" "my_node_app_task" {
 
 resource "aws_ecs_service" "my_service" {
   name            = var.ecs_service_name
-  cluster         =var.ccs #module.ecs.aws_ecs_cluster_name
+  cluster = aws_ecs_cluster.test.id
   task_definition = aws_ecs_task_definition.my_node_app_task.arn
   desired_count   = 1
 
