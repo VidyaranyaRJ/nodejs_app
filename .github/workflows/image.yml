@@ -24,14 +24,29 @@ jobs:
       # Step 3: Debug AWS credentials - Check if credentials are being loaded
       - name: Debug AWS credentials
         run: |
-          aws sts get-caller-identity
+          # Display AWS Access Keys and Region (careful with secrets)
+          echo "AWS Access Key ID: ${{ secrets.AWS_ACCESS_KEY_ID }}"
+          echo "AWS Region: us-east-2"
           
-      # Step 4: Login to Amazon ECR
+          # Check if AWS credentials are correctly set
+          aws sts get-caller-identity
+
+      # Step 4: Ensure AWS CLI is working with credentials
+      - name: AWS CLI version
+        run: |
+          aws --version
+
+      # Step 5: Check the AWS Credentials file
+      - name: Check AWS Credentials file
+        run: |
+          cat ~/.aws/credentials
+
+      # Step 6: Login to Amazon ECR
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      # Step 5: Build, tag, and push Docker image to Amazon ECR
+      # Step 7: Build, tag, and push Docker image to Amazon ECR
       - name: Build, tag, and push image to Amazon ECR
         id: build-image
         env:
@@ -44,7 +59,7 @@ jobs:
           docker push $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG
           echo "image=$ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-      # Step 6: Fill in the new image ID in the Amazon ECS task definition
+      # Step 8: Fill in the new image ID in the Amazon ECS task definition
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
@@ -53,7 +68,7 @@ jobs:
           container-name: nodejs-app
           image: ${{ steps.build-image.outputs.image }}
 
-      # Step 7: Deploy to ECS
+      # Step 9: Deploy to ECS
       - name: Deploy Amazon ECS task definition
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
