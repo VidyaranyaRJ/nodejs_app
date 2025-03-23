@@ -158,91 +158,91 @@
 
 
 
-name: Destroy Resources
+# name: Destroy Resources
 
-on:
-  push:
-    branches:
-      - main
+# on:
+#   push:
+#     branches:
+#       - main
 
-jobs:
-  destroy-resources:
-    runs-on: ubuntu-latest
-    environment: AWS
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+# jobs:
+#   destroy-resources:
+#     runs-on: ubuntu-latest
+#     environment: AWS
+#     steps:
+#       - name: Checkout repository
+#         uses: actions/checkout@v3
 
-      # Configure AWS credentials
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-2
+#       # Configure AWS credentials
+#       - name: Configure AWS credentials
+#         uses: aws-actions/configure-aws-credentials@v2
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: us-east-2
 
-      # Verify AWS CLI credentials
-      - name: Verify AWS CLI credentials
-        run: aws sts get-caller-identity
+#       # Verify AWS CLI credentials
+#       - name: Verify AWS CLI credentials
+#         run: aws sts get-caller-identity
 
-      # Destroy ECS Service (with check)
-      - name: Destroy ECS Service
-        run: |
-          SERVICE_STATUS=$(aws ecs describe-services --cluster ecs_cluster_name --services ecs_service_name --query 'services[0].status' --output text 2>/dev/null || echo "INACTIVE")
-          if [ "$SERVICE_STATUS" = "ACTIVE" ]; then
-            aws ecs update-service --cluster ecs_cluster_name --service ecs_service_name --desired-count 0
-            echo "Waiting for tasks to stop..."
-            sleep 30
-            aws ecs delete-service --cluster ecs_cluster_name --service ecs_service_name --force
-            echo "ECS service deleted."
-          else
-            echo "Service is not active or already deleted. Skipping service deletion."
-          fi
+#       # Destroy ECS Service (with check)
+#       - name: Destroy ECS Service
+#         run: |
+#           SERVICE_STATUS=$(aws ecs describe-services --cluster ecs_cluster_name --services ecs_service_name --query 'services[0].status' --output text 2>/dev/null || echo "INACTIVE")
+#           if [ "$SERVICE_STATUS" = "ACTIVE" ]; then
+#             aws ecs update-service --cluster ecs_cluster_name --service ecs_service_name --desired-count 0
+#             echo "Waiting for tasks to stop..."
+#             sleep 30
+#             aws ecs delete-service --cluster ecs_cluster_name --service ecs_service_name --force
+#             echo "ECS service deleted."
+#           else
+#             echo "Service is not active or already deleted. Skipping service deletion."
+#           fi
 
-      # Deregister Task Definition (with existence check)
-      - name: Deregister Task Definition
-        run: |
-          if aws ecs describe-task-definition --task-definition my-node-app-task > /dev/null 2>&1; then
-            TASK_ARN=$(aws ecs describe-task-definition --task-definition my-node-app-task --query 'taskDefinition.taskDefinitionArn' --output text)
-            aws ecs deregister-task-definition --task-definition $TASK_ARN
-            echo "Deregistered task definition: $TASK_ARN"
-          else
-            echo "No task definition found to deregister. Skipping."
-          fi
+#       # Deregister Task Definition (with existence check)
+#       - name: Deregister Task Definition
+#         run: |
+#           if aws ecs describe-task-definition --task-definition my-node-app-task > /dev/null 2>&1; then
+#             TASK_ARN=$(aws ecs describe-task-definition --task-definition my-node-app-task --query 'taskDefinition.taskDefinitionArn' --output text)
+#             aws ecs deregister-task-definition --task-definition $TASK_ARN
+#             echo "Deregistered task definition: $TASK_ARN"
+#           else
+#             echo "No task definition found to deregister. Skipping."
+#           fi
 
-      # Delete ECR Repository and Images
-      - name: Delete ECR Repository
-        env:
-          REPOSITORY: ecr_repository_name
-        run: |
-          if aws ecr describe-repositories --repository-names $REPOSITORY > /dev/null 2>&1; then
-            aws ecr batch-delete-image --repository-name $REPOSITORY --image-ids imageTag=latest || true
-            aws ecr delete-repository --repository-name $REPOSITORY --force || true
-            echo "Deleted ECR repository: $REPOSITORY"
-          else
-            echo "ECR repository $REPOSITORY does not exist. Skipping."
-          fi
+#       # Delete ECR Repository and Images
+#       - name: Delete ECR Repository
+#         env:
+#           REPOSITORY: ecr_repository_name
+#         run: |
+#           if aws ecr describe-repositories --repository-names $REPOSITORY > /dev/null 2>&1; then
+#             aws ecr batch-delete-image --repository-name $REPOSITORY --image-ids imageTag=latest || true
+#             aws ecr delete-repository --repository-name $REPOSITORY --force || true
+#             echo "Deleted ECR repository: $REPOSITORY"
+#           else
+#             echo "ECR repository $REPOSITORY does not exist. Skipping."
+#           fi
 
-      # Deregister Container Instances
-      - name: Deregister Container Instances
-        run: |
-          CONTAINER_INSTANCE_ARNS=$(aws ecs list-container-instances --cluster ecs_cluster_name --query 'containerInstanceArns' --output text)
-          if [ ! -z "$CONTAINER_INSTANCE_ARNS" ]; then
-            for arn in $CONTAINER_INSTANCE_ARNS; do
-              aws ecs deregister-container-instance --cluster ecs_cluster_name --container-instance $arn --force
-              echo "Deregistered container instance: $arn"
-            done
-          else
-            echo "No container instances found to deregister."
-          fi
+#       # Deregister Container Instances
+#       - name: Deregister Container Instances
+#         run: |
+#           CONTAINER_INSTANCE_ARNS=$(aws ecs list-container-instances --cluster ecs_cluster_name --query 'containerInstanceArns' --output text)
+#           if [ ! -z "$CONTAINER_INSTANCE_ARNS" ]; then
+#             for arn in $CONTAINER_INSTANCE_ARNS; do
+#               aws ecs deregister-container-instance --cluster ecs_cluster_name --container-instance $arn --force
+#               echo "Deregistered container instance: $arn"
+#             done
+#           else
+#             echo "No container instances found to deregister."
+#           fi
 
-      # Delete ECS Cluster
-      - name: Delete ECS Cluster
-        run: |
-          CLUSTER_STATUS=$(aws ecs describe-clusters --clusters ecs_cluster_name --query 'clusters[0].status' --output text 2>/dev/null || echo "MISSING")
-          if [ "$CLUSTER_STATUS" != "MISSING" ]; then
-            aws ecs delete-cluster --cluster ecs_cluster_name
-            echo "Deleted ECS cluster: ecs_cluster_name"
-          else
-            echo "ECS cluster not found or already deleted."
-          fi
+#       # Delete ECS Cluster
+#       - name: Delete ECS Cluster
+#         run: |
+#           CLUSTER_STATUS=$(aws ecs describe-clusters --clusters ecs_cluster_name --query 'clusters[0].status' --output text 2>/dev/null || echo "MISSING")
+#           if [ "$CLUSTER_STATUS" != "MISSING" ]; then
+#             aws ecs delete-cluster --cluster ecs_cluster_name
+#             echo "Deleted ECS cluster: ecs_cluster_name"
+#           else
+#             echo "ECS cluster not found or already deleted."
+#           fi
