@@ -3,7 +3,7 @@ name: CICD
 on:
   push:
     branches:
-      - deploy-to-ecs  # Trigger the workflow when pushing to this branch
+      - main  # Trigger the workflow when pushing to this branch
 
 jobs:
   build-and-deploy:
@@ -17,7 +17,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: 'us-east-1'  # Set AWS region
+          aws-region: 'us-east-2'  # Set AWS region
 
       - name: Login to Amazon ECR
         id: login-ecr
