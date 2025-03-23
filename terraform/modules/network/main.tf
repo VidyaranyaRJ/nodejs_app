@@ -68,6 +68,13 @@ resource "aws_security_group" "ecs_security_group" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
+  ingress {
+  from_port   = 22
+  to_port     = 22
+  protocol    = "tcp"
+  cidr_blocks = ["0.0.0.0/0"]  # or 0.0.0.0/0 for quick testing
+}
+
   depends_on = [  aws_vpc.my_vpc ]
 }
 

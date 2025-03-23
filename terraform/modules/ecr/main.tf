@@ -15,6 +15,7 @@ resource "aws_instance" "ecs_instance" {
   subnet_id              = var.subnet
   vpc_security_group_ids = [var.sg_id]
   iam_instance_profile   = data.aws_iam_instance_profile.ecs_profile.name
+  associate_public_ip_address = true
 
   user_data = <<-EOF
     #!/bin/bash
