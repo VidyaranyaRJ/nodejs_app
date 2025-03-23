@@ -1,72 +1,154 @@
-name: CICD
+# name: CICD
+
+# on:
+#   push:
+#     branches:
+#       - main  # Trigger the workflow when pushing to this branch
+
+# jobs:
+#   build-and-deploy:
+#     runs-on: ubuntu-latest 
+#     environment: AWS
+#  # Run the job on an Ubuntu environment
+#     steps:
+#       - name: Checkout repository
+#         uses: actions/checkout@v3  # Checkout the repository to get the source code
+
+#       # Configure AWS credentials
+#       - name: Configure AWS credentials
+#         uses: aws-actions/configure-aws-credentials@v2
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}  # Use correct secret name here
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}  # Use correct secret name here
+#           aws-region: us-east-2  # Set AWS region
+
+#       # Explicitly export AWS credentials to environment variables for subsequent commands
+#       # - name: Export AWS credentials
+#       #   run: |
+#       #     export AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
+#       #     export AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+      
+#       # Verify AWS CLI credentials
+#       - name: Verify AWS CLI credentials
+#         run: aws sts get-caller-identity  # Confirm the credentials are correctly configured
+
+#       # Login to Amazon ECR
+#       - name: Login to Amazon ECR
+#         id: login-ecr
+#         uses: aws-actions/amazon-ecr-login@v1  # Log into Amazon ECR
+#         with:
+#           mask-password: 'true'
+
+#       # Build, tag, and push image to Amazon ECR
+#       - name: Build, tag, and push image to Amazon ECR
+#         id: build-image
+#         env:
+#           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}  # The ECR registry URL
+#           IMAGE_TAG: latest  # Tag for the image
+#           REPOSITORY: ecr_repository_name  # Repository name in ECR
+#         run: |
+#           # Build and tag the Docker image
+#           docker build -t $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG .
+#           # Push the Docker image to ECR
+#           docker push $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG
+#           echo "image=$ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT  # Set output image for the next step
+
+#       # Fill in the new image ID in the Amazon ECS task definition
+#       - name: Fill in the new image ID in the Amazon ECS task definition
+#         id: task-def
+#         uses: aws-actions/amazon-ecs-render-task-definition@v1
+#         with:
+#           task-definition: nodejs-app-task-definition.json  # Path to ECS task definition
+#           container-name: my-node-app-container  # The name of the container in the task definition
+#           image: ${{ steps.build-image.outputs.image }}  # The new image URL that was pushed to ECR
+
+#       # Deploy Amazon ECS task definition
+#       - name: Deploy Amazon ECS task definition
+#         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+#         with:
+#           task-definition: ${{ steps.task-def.outputs.task-definition }}  # Use the updated task definition
+#           service: ecs_service_name  # ECS service name
+#           cluster: ecs_cluster_name  # ECS cluster name
+#           wait-for-service-stability: true  # Ensure the service is stable before moving forward
+
+
+
+
+
+#################Destroy###############
+name: Destroy Resources
 
 on:
-  push:
-    branches:
-      - main  # Trigger the workflow when pushing to this branch
+  workflow_dispatch:  # Manually trigger the workflow
 
 jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest 
+  destroy-resources:
+    runs-on: ubuntu-latest
     environment: AWS
- # Run the job on an Ubuntu environment
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3  # Checkout the repository to get the source code
+        uses: actions/checkout@v3
 
       # Configure AWS credentials
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}  # Use correct secret name here
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}  # Use correct secret name here
-          aws-region: us-east-2  # Set AWS region
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
 
-      # Explicitly export AWS credentials to environment variables for subsequent commands
-      # - name: Export AWS credentials
-      #   run: |
-      #     export AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
-      #     export AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-      
       # Verify AWS CLI credentials
       - name: Verify AWS CLI credentials
-        run: aws sts get-caller-identity  # Confirm the credentials are correctly configured
+        run: aws sts get-caller-identity
 
       # Login to Amazon ECR
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1  # Log into Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
         with:
           mask-password: 'true'
 
-      # Build, tag, and push image to Amazon ECR
-      - name: Build, tag, and push image to Amazon ECR
-        id: build-image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}  # The ECR registry URL
-          IMAGE_TAG: latest  # Tag for the image
-          REPOSITORY: ecr_repository_name  # Repository name in ECR
+      # Destroy ECS Service
+      - name: Destroy ECS Service
         run: |
-          # Build and tag the Docker image
-          docker build -t $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG .
-          # Push the Docker image to ECR
-          docker push $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG
-          echo "image=$ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT  # Set output image for the next step
+          # Update service to 0 tasks
+          aws ecs update-service --cluster ecs_cluster_name --service ecs_service_name --desired-count 0
+          # Wait for tasks to be stopped
+          echo "Waiting for tasks to stop..."
+          sleep 30
+          # Delete the service
+          aws ecs delete-service --cluster ecs_cluster_name --service ecs_service_name --force
 
-      # Fill in the new image ID in the Amazon ECS task definition
-      - name: Fill in the new image ID in the Amazon ECS task definition
-        id: task-def
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: nodejs-app-task-definition.json  # Path to ECS task definition
-          container-name: my-node-app-container  # The name of the container in the task definition
-          image: ${{ steps.build-image.outputs.image }}  # The new image URL that was pushed to ECR
+      # Deregister Task Definition
+      - name: Deregister Task Definition
+        run: |
+          TASK_ARN=$(aws ecs describe-task-definition --task-definition my-node-app-task --query 'taskDefinition.taskDefinitionArn' --output text)
+          if [ ! -z "$TASK_ARN" ]; then
+            aws ecs deregister-task-definition --task-definition $TASK_ARN
+            echo "Deregistered task definition: $TASK_ARN"
+          else
+            echo "No task definition found to deregister"
+          fi
 
-      # Deploy Amazon ECS task definition
-      - name: Deploy Amazon ECS task definition
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          task-definition: ${{ steps.task-def.outputs.task-definition }}  # Use the updated task definition
-          service: ecs_service_name  # ECS service name
-          cluster: ecs_cluster_name  # ECS cluster name
-          wait-for-service-stability: true  # Ensure the service is stable before moving forward
+      # Delete ECR Repository and Images
+      - name: Delete ECR Repository
+        env:
+          REPOSITORY: ecr_repository_name
+        run: |
+          # Delete all images in the repository
+          aws ecr batch-delete-image --repository-name $REPOSITORY --image-ids imageTag=latest || true
+          # Delete the repository
+          aws ecr delete-repository --repository-name $REPOSITORY --force || true
+          echo "Deleted ECR repository: $REPOSITORY"
+
+      # Delete ECS Cluster (if it was created by this workflow)
+      - name: Delete ECS Cluster
+        run: |
+          # Check if the cluster exists
+          CLUSTER_STATUS=$(aws ecs describe-clusters --clusters ecs_cluster_name --query 'clusters[0].status' --output text 2>/dev/null || echo "MISSING")
+          if [ "$CLUSTER_STATUS" != "MISSING" ]; then
+            aws ecs delete-cluster --cluster ecs_cluster_name
+            echo "Deleted ECS cluster: ecs_cluster_name"
+          else
+            echo "ECS cluster not found or already deleted"
+          fi
