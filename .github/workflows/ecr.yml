@@ -79,7 +79,10 @@
 name: Destroy Resources
 
 on:
-  workflow_dispatch:  # Manually trigger the workflow
+  push:
+    branches:
+      - main
+
 
 jobs:
   destroy-resources:
