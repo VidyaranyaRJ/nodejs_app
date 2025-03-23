@@ -1,120 +1,3 @@
-# name: Terraform EC2 Deployment
-
-# on:
-#   push:
-#     branches: [ main ]
-#   pull_request:
-#     branches: [ main ]
-#   workflow_dispatch:
-
-# jobs:
-#   terraform:
-#     runs-on: ubuntu-latest
-#     environment: AWS
-#     defaults:
-#       run:
-#         working-directory: ./code/
-#     steps:
-#     - name: Checkout repository
-#       uses: actions/checkout@v3
-      
-#     - name: Setup Terraform
-#       uses: hashicorp/setup-terraform@v2
-#       with:
-#         terraform_version: 1.5.0
-        
-#     - name: Configure AWS credentials
-#       uses: aws-actions/configure-aws-credentials@v2
-#       with:
-#         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-#         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-#         aws-region: us-east-2
-    
-#     - name: Verify AWS CLI
-#       run: aws sts get-caller-identity
-        
-#     - name: Terraform Init with S3 Backend
-#       run: |
-#         terraform init \
-#           -backend-config="bucket=vj-test-ecr-79" \
-#           -backend-config="key=terraform.tfstate" \
-#           -backend-config="region=us-east-2" \
-#           -backend-config="encrypt=true"
-
-#     - name: Terraform Format
-#       run: terraform fmt -check
-#       continue-on-error: true
-
-#     - name: Terraform Validate
-#       run: terraform validate
-
-#     - name: Terraform Plan
-#       run: |
-#         export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
-#         export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-#         terraform plan -input=false -no-color -out=tfplan
-#       timeout-minutes: 5
-      
-#     # - name: Terraform Apply
-#     #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-#     #   run: |
-#     #     export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
-#     #     export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-#     #     terraform apply -auto-approve tfplan
-#     #   timeout-minutes: 10
-
-
-#     #Destroy resources
-#     - name: Terraform Destroy
-#       run: |
-#         echo "DESTROYING ALL RESOURCES!"
-#         export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
-#         export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-#         terraform destroy -auto-approve
-#       timeout-minutes: 12
-
-
-
-#     # # Ensure ECR repository exists before proceeding
-#     # - name: Ensure ECR Repository Exists
-#     #   run: |
-#     #     if ! aws ecr describe-repositories --repository-names nodejs-app --region us-east-2 2>/dev/null; then
-#     #       aws ecr create-repository --repository-name nodejs-app --region us-east-2
-#     #     fi
-
-#     # # Retrieve AWS Account ID dynamically
-#     # - name: Get AWS Account ID
-#     #   run: |
-#     #     AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
-#     #     echo "AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID}" >> $GITHUB_ENV
-
-#     # # Get ECR Repository URI dynamically
-#     # - name: Get ECR Repository URI
-#     #   run: |
-#     #     ECR_REPO_URI=$(aws ecr describe-repositories --repository-names nodejs-app --query "repositories[0].repositoryUri" --output text --region us-east-2)
-#     #     echo "ECR_REPO_URI=${ECR_REPO_URI}" >> $GITHUB_ENV
-
-#     # # Docker build and push steps
-#     # - name: Build Docker image
-#     #   run: |
-#     #     docker build -t nodejs-app .
-
-#     # - name: Log in to Amazon ECR
-#     #   run: |
-#     #     aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin $ECR_REPO_URI
-
-#     # - name: Tag Docker image
-#     #   run: |
-#     #     docker tag nodejs-app:latest $ECR_REPO_URI:latest
-
-#     # - name: Push Docker image to ECR
-#     #   run: |
-#     #     docker push $ECR_REPO_URI:latest
-
-
-
-
-
 name: Terraform EC2 Deployment
 
 on:
@@ -128,33 +11,28 @@ jobs:
   terraform:
     runs-on: ubuntu-latest
     environment: AWS
-    
+    defaults:
+      run:
+        working-directory: ./code/
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
-
+      
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v2
       with:
         terraform_version: 1.5.0
-
+        
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v2
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: us-east-2
-
+    
     - name: Verify AWS CLI
       run: aws sts get-caller-identity
-
-    - name: Debug Files
-      run: |
-        ls -la
-        echo "---"
-        ls -la modules/
-
-    # Point to the modules directory in terraform commands
+        
     - name: Terraform Init with S3 Backend
       run: |
         terraform init \
@@ -162,16 +40,13 @@ jobs:
           -backend-config="key=terraform.tfstate" \
           -backend-config="region=us-east-2" \
           -backend-config="encrypt=true"
-      working-directory: ./modules
 
     - name: Terraform Format
-      run: terraform fmt -check -recursive
+      run: terraform fmt -check
       continue-on-error: true
-      working-directory: ./modules
 
     - name: Terraform Validate
       run: terraform validate
-      working-directory: ./modules
 
     - name: Terraform Plan
       run: |
@@ -179,66 +54,62 @@ jobs:
         export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
         terraform plan -input=false -no-color -out=tfplan
       timeout-minutes: 5
-      working-directory: ./modules
+      
+    # - name: Terraform Apply
+    #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    #   run: |
+    #     export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
+    #     export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+    #     terraform apply -auto-approve tfplan
+    #   timeout-minutes: 10
 
-    - name: Terraform Apply
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    #Destroy resources
+    - name: Terraform Destroy
       run: |
+        echo "DESTROYING ALL RESOURCES!"
         export TF_VAR_AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
         export TF_VAR_AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-        terraform apply -auto-approve tfplan
-      timeout-minutes: 10
-      working-directory: ./modules
+        terraform destroy -auto-approve
+      timeout-minutes: 12
 
-    # Ensure ECR repository exists before proceeding
-    - name: Ensure ECR Repository Exists
-      run: |
-        if ! aws ecr describe-repositories --repository-names nodejs-app --region us-east-2 2>/dev/null; then
-          aws ecr create-repository --repository-name nodejs-app --region us-east-2
-        fi
 
-    # Retrieve AWS Account ID dynamically
-    - name: Get AWS Account ID
-      run: |
-        AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
-        echo "AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID}" >> $GITHUB_ENV
 
-    # Get ECR Repository URI dynamically
-    - name: Get ECR Repository URI
-      run: |
-        ECR_REPO_URI=$(aws ecr describe-repositories --repository-names nodejs-app --query "repositories[0].repositoryUri" --output text --region us-east-2)
-        echo "ECR_REPO_URI=${ECR_REPO_URI}" >> $GITHUB_ENV
+    # # Ensure ECR repository exists before proceeding
+    # - name: Ensure ECR Repository Exists
+    #   run: |
+    #     if ! aws ecr describe-repositories --repository-names nodejs-app --region us-east-2 2>/dev/null; then
+    #       aws ecr create-repository --repository-name nodejs-app --region us-east-2
+    #     fi
 
-    # Check if Node.js app directory exists with Dockerfile
-    - name: Debug Node.js App Directory
-      run: |
-        if [ -d "./nodejs-app" ]; then
-          echo "nodejs-app directory exists"
-          ls -la ./nodejs-app/
-        else
-          echo "nodejs-app directory does not exist"
-        fi
+    # # Retrieve AWS Account ID dynamically
+    # - name: Get AWS Account ID
+    #   run: |
+    #     AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
+    #     echo "AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID}" >> $GITHUB_ENV
 
-    # Build and push Docker image - updated to use the nodejs-app directory if it exists
-    - name: Build Docker image
-      run: |
-        if [ -d "./nodejs-app" ] && [ -f "./nodejs-app/Dockerfile" ]; then
-          docker build -t nodejs-app ./nodejs-app/
-        elif [ -f "./Dockerfile" ]; then
-          docker build -t nodejs-app .
-        else
-          echo "No Dockerfile found"
-          exit 1
-        fi
+    # # Get ECR Repository URI dynamically
+    # - name: Get ECR Repository URI
+    #   run: |
+    #     ECR_REPO_URI=$(aws ecr describe-repositories --repository-names nodejs-app --query "repositories[0].repositoryUri" --output text --region us-east-2)
+    #     echo "ECR_REPO_URI=${ECR_REPO_URI}" >> $GITHUB_ENV
 
-    - name: Log in to Amazon ECR
-      run: |
-        aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin $ECR_REPO_URI
+    # # Docker build and push steps
+    # - name: Build Docker image
+    #   run: |
+    #     docker build -t nodejs-app .
 
-    - name: Tag Docker image
-      run: |
-        docker tag nodejs-app:latest $ECR_REPO_URI:latest
+    # - name: Log in to Amazon ECR
+    #   run: |
+    #     aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin $ECR_REPO_URI
 
-    - name: Push Docker image to ECR
-      run: |
-        docker push $ECR_REPO_URI:latest
+    # - name: Tag Docker image
+    #   run: |
+    #     docker tag nodejs-app:latest $ECR_REPO_URI:latest
+
+    # - name: Push Docker image to ECR
+    #   run: |
+    #     docker push $ECR_REPO_URI:latest
+
+
+
