@@ -19,6 +19,9 @@ resource "aws_subnet" "my_subnet" {
   depends_on = [  aws_vpc.my_vpc ]
 }
 
+
+
+
 resource "aws_internet_gateway" "my_gateway" {
   vpc_id = aws_vpc.my_vpc.id
   depends_on = [  aws_vpc.my_vpc ]
@@ -35,7 +38,11 @@ resource "aws_route_table" "my_route_table" {
   depends_on = [  aws_vpc.my_vpc, aws_internet_gateway.my_gateway ]
 }
 
-
+resource "aws_route" "public_route" {
+  route_table_id         = aws_route_table.my_route_table.id
+  destination_cidr_block = "0.0.0.0/0"
+  gateway_id             = aws_internet_gateway.my_gateway.id
+}
 
 
 resource "aws_security_group" "ecs_security_group" {
