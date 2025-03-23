@@ -9,8 +9,9 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest  # Run the job on an Ubuntu environment
     steps:
-      - name: Checkout source code
+      - name: Checkout repository
         uses: actions/checkout@v3  # Checkout the repository to get the source code
+
       
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v3
