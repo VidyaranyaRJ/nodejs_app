@@ -166,7 +166,7 @@ data "aws_iam_instance_profile" "ecs_profile" {
 }
 
 resource "aws_instance" "ecs_instance" {
-  ami                         = "ami-059601b8419c53014"  # Latest ECS-optimized AMI
+  ami                         = "ami-0c3b809fcf2445b6a"
   instance_type               = "t2.micro"
   subnet_id                   = var.subnet
   vpc_security_group_ids      = [var.sg_id]
@@ -177,19 +177,33 @@ resource "aws_instance" "ecs_instance" {
   user_data = <<-EOF
     #!/bin/bash
     echo "ECS_CLUSTER=${aws_ecs_cluster.test.name}" >> /etc/ecs/ecs.config
-    yum install -y amazon-ecs-init
-    yum update -y ecs-init docker
-    systemctl daemon-reload
+
+    # Install Docker
+    apt-get update
+    apt-get install -y docker.io awscli
     systemctl enable docker
-    systemctl restart docker
-    systemctl enable ecs
-    systemctl restart ecs
+    systemctl start docker
+
+    # Install ECS Agent
+    docker run --name ecs-agent \
+      --detach=true \
+      --restart=always \
+      --volume=/var/run/docker.sock:/var/run/docker.sock \
+      --volume=/var/log/ecs/:/log \
+      --volume=/var/lib/ecs/data:/data \
+      --volume=/etc/ecs:/etc/ecs \
+      --net=host \
+      --env ECS_LOGFILE=/log/ecs-agent.log \
+      --env ECS_LOGLEVEL=info \
+      --env ECS_CLUSTER=${aws_ecs_cluster.test.name} \
+      amazon/amazon-ecs-agent:latest
   EOF
 
   tags = {
-    Name = "ecs-instance"
+    Name = "ecs-instance-ubuntu"
   }
 }
+
 
 resource "aws_ecs_task_definition" "my_node_app_task" {
   family                   = "my-node-app-task"
