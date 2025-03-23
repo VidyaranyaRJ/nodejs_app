@@ -33,6 +33,7 @@ module "ecr" {
   cluster                                = module.ecs.ecs_cluster_name   # <== pass here
   subnet                                 = module.network.subnet_id
   sg_id                                  = module.network.security_group_id
+  ccs  = module.ecs.ecs_cluster_name
 }
 
 

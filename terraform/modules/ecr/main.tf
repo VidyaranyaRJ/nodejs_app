@@ -137,7 +137,7 @@ resource "aws_ecs_task_definition" "my_node_app_task" {
 
 resource "aws_ecs_service" "my_service" {
   name            = var.ecs_service_name
-  cluster         = module.ecs.aws_ecs_cluster_name
+  cluster         =var.ccs #module.ecs.aws_ecs_cluster_name
   task_definition = aws_ecs_task_definition.my_node_app_task.arn
   desired_count   = 1
 

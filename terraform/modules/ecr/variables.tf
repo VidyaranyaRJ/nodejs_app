@@ -31,3 +31,9 @@ variable "cluster" {
   description = "The ECS cluster name"
   type        = string
 }
+
+
+variable "ccs" {
+  type        = string
+}
+
