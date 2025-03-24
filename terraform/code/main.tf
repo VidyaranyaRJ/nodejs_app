@@ -1,8 +1,8 @@
 terraform {
   backend "s3" {
-    bucket         = "vj-test-ecr-79"  # Your newly created S3 bucket
-    key            = "terraform.tfstate"  # Path to store the state file in S3
-    region         = "us-east-2"  # Update if your bucket is in a different region
+    bucket         = "vj-test-ecr-79"  
+    key            = "terraform.tfstate"  
+    region         = "us-east-2" 
     encrypt        = true
   }
 }
@@ -15,10 +15,9 @@ module "ecr" {
   ecs_service_name                       = var.ecs_service_name
   ecs_execution_role_arn                 = module.iam.ecs_execution_role_arn
   ecs_task_role_arn                      = module.iam.ecs_task_role_arn
-  # cluster                                = module.ecs.ecs_cluster_name   # <== pass here
   subnet                                 = module.network.subnet_id
   sg_id                                  = module.network.security_group_id
-  # ccs  = module.ecs.ecs_cluster_name
+
 }
 
 

@@ -11,7 +11,7 @@ resource "aws_vpc" "my_vpc" {
 resource "aws_subnet" "my_subnet" {
   vpc_id     = aws_vpc.my_vpc.id
   cidr_block = "10.0.1.0/24"
-  availability_zone = "us-east-2a"  # Change to your region’s AZ
+  availability_zone = "us-east-2a" 
   map_public_ip_on_launch = true
   tags = {
     Name = "my-subnet-node-js"
@@ -47,12 +47,12 @@ resource "aws_security_group" "ecs_security_group" {
   description = "Allow inbound traffic to ECS tasks"
   vpc_id      = aws_vpc.my_vpc.id  
 
-  # Allow ALL outbound traffic (Recommended)
+
   egress {
     cidr_blocks = ["0.0.0.0/0"]
     from_port   = 0
     to_port     = 0
-    protocol    = "-1" # ✅ this allows all protocols
+    protocol    = "-1" 
   }
 
   ingress {
@@ -67,7 +67,7 @@ resource "aws_security_group" "ecs_security_group" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-  # Allow HTTPS traffic if required
+
   ingress {
     from_port   = 443
     to_port     = 443
