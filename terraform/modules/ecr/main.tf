@@ -32,7 +32,7 @@ resource "aws_instance" "ecs_instance" {
     # Install ECS Agent
     docker run --name ecs-agent \
       --detach=true \
-      --restart=alway s \
+      --restart=always \
       --volume=/var/run/docker.sock:/var/run/docker.sock \
       --volume=/var/log/ecs/:/log \
       --volume=/var/lib/ecs/data:/data \
@@ -42,15 +42,6 @@ resource "aws_instance" "ecs_instance" {
       --env ECS_LOGLEVEL=info \
       --env ECS_CLUSTER=${aws_ecs_cluster.test.name} \
       amazon/amazon-ecs-agent:latest
-    
-    # Enable UFW and Allow Necessary Ports
-    sudo ufw allow 3000
-    sudo ufw allow 443
-    sudo ufw allow 22
-    sudo ufw enable
-
-    # Check UFW status
-    sudo ufw status
   EOF
 
   tags = {
