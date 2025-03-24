@@ -1,75 +1,75 @@
-# name: CICD
+name: CICD
 
-# on:
-#   push:
-#     branches:
-#       - main  # Trigger the workflow when pushing to this branch
+on:
+  push:
+    branches:
+      - main  # Trigger the workflow when pushing to this branch
 
-# jobs:
-#   build-and-deploy:
-#     runs-on: ubuntu-latest 
-#     environment: AWS
-#  # Run the job on an Ubuntu environment
-#     steps:
-#       - name: Checkout repository
-#         uses: actions/checkout@v3  # Checkout the repository to get the source code
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest 
+    environment: AWS
+ # Run the job on an Ubuntu environment
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3  # Checkout the repository to get the source code
 
-#       # Configure AWS credentials
-#       - name: Configure AWS credentials
-#         uses: aws-actions/configure-aws-credentials@v2
-#         with:
-#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}  # Use correct secret name here
-#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}  # Use correct secret name here
-#           aws-region: us-east-2  # Set AWS region
+      # Configure AWS credentials
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}  # Use correct secret name here
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}  # Use correct secret name here
+          aws-region: us-east-2  # Set AWS region
 
-#       # Explicitly export AWS credentials to environment variables for subsequent commands
-#       # - name: Export AWS credentials
-#       #   run: |
-#       #     export AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
-#       #     export AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+      # Explicitly export AWS credentials to environment variables for subsequent commands
+      # - name: Export AWS credentials
+      #   run: |
+      #     export AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
+      #     export AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
       
-#       # Verify AWS CLI credentials
-#       - name: Verify AWS CLI credentials
-#         run: aws sts get-caller-identity  # Confirm the credentials are correctly configured
+      # Verify AWS CLI credentials
+      - name: Verify AWS CLI credentials
+        run: aws sts get-caller-identity  # Confirm the credentials are correctly configured
 
-#       # Login to Amazon ECR
-#       - name: Login to Amazon ECR
-#         id: login-ecr
-#         uses: aws-actions/amazon-ecr-login@v1  # Log into Amazon ECR
-#         with:
-#           mask-password: 'true'
+      # Login to Amazon ECR
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1  # Log into Amazon ECR
+        with:
+          mask-password: 'true'
 
-#       # Build, tag, and push image to Amazon ECR
-#       - name: Build, tag, and push image to Amazon ECR
-#         id: build-image
-#         env:
-#           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}  # The ECR registry URL
-#           IMAGE_TAG: latest  # Tag for the image
-#           REPOSITORY: ecr_repository_name  # Repository name in ECR
-#         run: |
-#           # Build and tag the Docker image
-#           docker build -t $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG .
-#           # Push the Docker image to ECR
-#           docker push $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG
-#           echo "image=$ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT  # Set output image for the next step
+      # Build, tag, and push image to Amazon ECR
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}  # The ECR registry URL
+          IMAGE_TAG: latest  # Tag for the image
+          REPOSITORY: ecr_repository_name  # Repository name in ECR
+        run: |
+          # Build and tag the Docker image
+          docker build -t $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG .
+          # Push the Docker image to ECR
+          docker push $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT  # Set output image for the next step
 
-#       # Fill in the new image ID in the Amazon ECS task definition
-#       - name: Fill in the new image ID in the Amazon ECS task definition
-#         id: task-def
-#         uses: aws-actions/amazon-ecs-render-task-definition@v1
-#         with:
-#           task-definition: nodejs-app-task-definition.json  # Path to ECS task definition
-#           container-name: my-node-app-container  # The name of the container in the task definition
-#           image: ${{ steps.build-image.outputs.image }}  # The new image URL that was pushed to ECR
+      # Fill in the new image ID in the Amazon ECS task definition
+      - name: Fill in the new image ID in the Amazon ECS task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: nodejs-app-task-definition.json  # Path to ECS task definition
+          container-name: my-node-app-container  # The name of the container in the task definition
+          image: ${{ steps.build-image.outputs.image }}  # The new image URL that was pushed to ECR
 
-#       # Deploy Amazon ECS task definition
-#       - name: Deploy Amazon ECS task definition
-#         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-#         with:
-#           task-definition: ${{ steps.task-def.outputs.task-definition }}  # Use the updated task definition
-#           service: ecs_service_name  # ECS service name
-#           cluster: ecs_cluster_name  # ECS cluster name
-#           wait-for-service-stability: true  # Ensure the service is stable before moving forward
+      # Deploy Amazon ECS task definition
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}  # Use the updated task definition
+          service: ecs_service_name  # ECS service name
+          cluster: ecs_cluster_name  # ECS cluster name
+          wait-for-service-stability: true  # Ensure the service is stable before moving forward
 
 
 
