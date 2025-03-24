@@ -67,6 +67,13 @@ resource "aws_security_group" "ecs_security_group" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
+  # Allow HTTPS traffic if required
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
   depends_on = [ aws_vpc.my_vpc ]
 }
