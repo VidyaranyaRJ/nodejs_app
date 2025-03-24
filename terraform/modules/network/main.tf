@@ -20,15 +20,6 @@ resource "aws_subnet" "my_subnet" {
 }
 
 
-
-
-
-
-
-
-
-
-
 resource "aws_internet_gateway" "my_gateway" {
   vpc_id = aws_vpc.my_vpc.id
   depends_on = [  aws_vpc.my_vpc ]
@@ -45,44 +36,10 @@ resource "aws_route_table" "my_route_table" {
   depends_on = [  aws_vpc.my_vpc, aws_internet_gateway.my_gateway ]
 }
 
-# resource "aws_route" "public_route" {
-#   route_table_id         = aws_route_table.my_route_table.id
-#   destination_cidr_block = "0.0.0.0/0"
-#   gateway_id             = aws_internet_gateway.my_gateway.id
-# }
-
 resource "aws_route_table_association" "public_association" {
   subnet_id      = aws_subnet.my_subnet.id
   route_table_id = aws_route_table.my_route_table.id
 }
-
-# resource "aws_security_group" "ecs_security_group" {
-#   name        = var.sg_name
-#   description = "Allow inbound traffic to ECS tasks"
-#   vpc_id      = aws_vpc.my_vpc.id  
-
-#   egress {
-#     cidr_blocks = ["0.0.0.0/0"]
-#     from_port   = 0
-#     to_port     = 0
-#     protocol    = "tcp"
-#   }
-
-#   ingress {
-#     from_port   = 3000
-#     to_port     = 3000
-#     protocol    = "tcp"
-#     cidr_blocks = ["0.0.0.0/0"]
-#   }
-#   ingress {
-#   from_port   = 22
-#   to_port     = 22
-#   protocol    = "tcp"
-#   cidr_blocks = ["0.0.0.0/0"]  # or 0.0.0.0/0 for quick testing
-# }
-
-#   depends_on = [  aws_vpc.my_vpc ]
-# }
 
 
 resource "aws_security_group" "ecs_security_group" {
